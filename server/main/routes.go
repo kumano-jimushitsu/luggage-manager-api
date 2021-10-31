@@ -25,7 +25,7 @@ func (routes *Routes) ryoseiHandler(env *Env) http.Handler {
 		if method == "" {
 			showAllRyoseis(w, r, env.DB)
 		} else if method == "create" {
-			showRequestData(w, r, env.DB)
+			processCreateRequest(w, r, env.DB)
 		} else if method == "update" {
 			fmt.Fprintf(w, "Hello, %s", r.URL.Path[len("/ryosei/"):])
 		} else {
@@ -34,23 +34,18 @@ func (routes *Routes) ryoseiHandler(env *Env) http.Handler {
 	})
 }
 
-// func insertRyoseiSync() {
-// 	// Get request
-// 	json = request.json()
-
-// 	// Convert json into sql command
-// 	json := convertIntoSQL()
-
-// 	// Execute the command
-
-// 	// Send a message to
-// }
-
-func showRequestData(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+/*
+	タブレット側からjsonを取り出し、
+	jsonをもとにDBを更新する（create）
+	最後に成功・失敗ステータスをメッセージで送り返す
+*/
+func processCreateRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	r.ParseForm()
 	// log.Println(r.Form)
-	json := r.Form[""]
-	fmt.Fprintf(w, "%s", json)
+	data_json := r.Form[""]
+	sqlcommand := json_test(data_json[0])
+	log.Println(sqlcommand)
+	fmt.Fprintf(w, "%s", sqlcommand)
 }
 
 func showAllRyoseis(w http.ResponseWriter, r *http.Request, db *sql.DB) {
@@ -91,6 +86,10 @@ func (routes *Routes) parcelHandler(env *Env) http.Handler {
 	})
 }
 
-func json_test(str1 string) string {
-	return "a"
+func json_test(data_json string) interface{} {
+	var DB_data []map[string]interface{}
+	json.Unmarshal([]byte(data_json), &DB_data)
+	result_data := DB_data[0]["ryosei_name"]
+	return result_data
 }
+
