@@ -37,18 +37,20 @@ func (routes *Routes) ryoseiHandler(env *Env) http.Handler {
 // func insertRyoseiSync() {
 // 	// Get request
 // 	json = request.json()
-	
+
 // 	// Convert json into sql command
 // 	json := convertIntoSQL()
 
 // 	// Execute the command
 
-// 	// Send a message to 
+// 	// Send a message to
 // }
 
 func showRequestData(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	// fmt.Fprintf(w, "%s", r.Method)
-	fmt.Fprintf(w, "%s", r.Method)
+	r.ParseForm()
+	// log.Println(r.Form)
+	json := r.Form[""]
+	fmt.Fprintf(w, "%s", json)
 }
 
 func showAllRyoseis(w http.ResponseWriter, r *http.Request, db *sql.DB) {
@@ -87,4 +89,8 @@ func (routes *Routes) parcelHandler(env *Env) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello, %s", r.URL.Path[len("/parcel/"):])
 	})
+}
+
+func json_test(str1 string) string {
+	return "a"
 }
