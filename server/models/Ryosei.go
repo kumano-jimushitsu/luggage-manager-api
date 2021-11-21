@@ -1,27 +1,27 @@
 package models
 
-import "database/sql"
+import "github.com/jmoiron/sqlx"
 
 type Ryosei struct {
-	Id                int
-	Room              string
-	Name              string
-	Kana              string
-	Romaji            string
-	BlockID           int
-	SlackID           string
-	Status            int
-	CurrentCount      int
-	TotalCount        int
-	TotalWait         string
-	LastEventID       int
-	LastEventDatetime string
-	CreatedAt         string
-	UpdatedAt         string
-	SharingStatus     string
+	Id                string `json:`
+	RoomID            string `json:`
+	Name              string `json:`
+	Kana              string `json:`
+	Romaji            string `json:`
+	BlockID           int    `json:`
+	SlackID           string `json:`
+	Status            bool   `json:`
+	CurrentCount      int    `json:`
+	TotalCount        int    `json:`
+	TotalWaitTime     string `json:`
+	LastEventID       int    `json:`
+	LastEventDatetime string `json:`
+	CreatedAt         string `json:`
+	UpdatedAt         string `json:`
+	SharingStatus     string `json:`
 }
 
-func AllRyoseis(db *sql.DB) ([]*Ryosei, error) {
+func GetAllRyoseis(db *sqlx.DB) ([]*Ryosei, error) {
 	rows, err := db.Query("SELECT * FROM ryosei")
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func AllRyoseis(db *sql.DB) ([]*Ryosei, error) {
 		ryosei := new(Ryosei)
 		err := rows.Scan(
 			&ryosei.Id,
-			&ryosei.Room,
+			&ryosei.RoomID,
 			&ryosei.Name,
 			&ryosei.Kana,
 			&ryosei.Romaji,
@@ -42,7 +42,7 @@ func AllRyoseis(db *sql.DB) ([]*Ryosei, error) {
 			&ryosei.Status,
 			&ryosei.CurrentCount,
 			&ryosei.TotalCount,
-			&ryosei.TotalWait,
+			&ryosei.TotalWaitTime,
 			&ryosei.LastEventID,
 			&ryosei.LastEventDatetime,
 			&ryosei.CreatedAt,
