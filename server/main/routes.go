@@ -119,7 +119,6 @@ func createParcel(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 		log.Fatal(err)
 	}
 	msg, err := models.GetUnsyncedParcelsAsSqlInsert(db)
-	log.Fatal(*msg)
 	if err != nil {
 		log.Fatal(err)
 	}
