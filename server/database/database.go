@@ -14,10 +14,11 @@ type Env struct {
 
 func NewDB(dbName string) (*sqlx.DB, error) {
 	query := makeQuery(dbName).String()
+
 	// Connect to MySQL
 	// db, err := sql.Open("mysql", "root:my-secret-pwd@tcp(db:3306)/mydb")
-	// Connect to MSSQL
 
+	// Connect to MSSQL
 	db, err := sqlx.Open("sqlserver", query)
 	if err != nil {
 		panic(err.Error())

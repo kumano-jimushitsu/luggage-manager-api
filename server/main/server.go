@@ -33,6 +33,7 @@ func main() {
 	// Register event handlers
 	mux.Handle("/ryosei/", routes.ryoseiHandler(env))
 	mux.Handle("/parcel/", routes.parcelHandler(env))
+	mux.Handle("/parcelEvent/", routes.parcelEventHandler(env))
 
 	// Start the Server
 	err = http.ListenAndServe(":8080", mux)
