@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"luggage-api/server/database"
+	"luggage-api/server/handlers"
+	"luggage-api/server/models"
 	"net/http"
 
 	_ "github.com/denisenkom/go-mssqldb"
@@ -24,16 +26,16 @@ func main() {
 	// Define a non-default ServeMux
 	mux := http.NewServeMux()
 
-	routes := Routes{
-		rootDir:     "",
-		disableCORS: true,
-		apiKey:      "aaa",
+	routes := handlers.Routes{
+		RootDir:     "",
+		DisableCORS: true,
+		ApiKey:      "aaa",
 	}
 
 	// Register event handlers
-	mux.Handle("/ryosei/", routes.ryoseiHandler(env))
-	mux.Handle("/parcel/", routes.parcelHandler(env))
-	mux.Handle("/parcelEvent/", routes.parcelEventHandler(env))
+	mux.Handle("/ryosei/", routes.ObjectHandler(env, models.Ryosei{}))
+	mux.Handle("/parcel/", routes.ObjectHandler(env, models.Parcel{}))
+	mux.Handle("/parcelEvent/", routes.ObjectHandler(env, models.ParcelEvent{}))
 
 	// Start the Server
 	err = http.ListenAndServe(":8080", mux)

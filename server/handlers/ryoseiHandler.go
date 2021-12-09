@@ -4,13 +4,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"luggage-api/server/database"
 	"luggage-api/server/models"
 	"net/http"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
 
-func ShowAllRyoseis(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
+func ryoseiHandler(env *database.Env) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// Trim the action from the request url
+		method := strings.TrimPrefix(r.URL.Path, "/ryosei/")
+
+		if method == "" {
+			showAllRyoseis(w, r, env.DB)
+		} else if method == "create" {
+			createRyosei(w, r, env.DB)
+		} else if method == "update" {
+			updateRyosei(w, r, env.DB)
+		} else if method == "check" {
+			checkRyoseiUpdateInTablet(w, r, env.DB)
+		} else {
+			fmt.Fprintf(w, "Wrong action: %s", r.URL.Path[len("/ryosei/"):])
+		}
+	})
+}
+
+func showAllRyoseis(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 
 	// Get all ryoseis
 	ryoseis, err := models.GetAllRyoseis(db)
@@ -27,7 +49,7 @@ func ShowAllRyoseis(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 	fmt.Fprintf(w, "%s", string(json))
 }
 
-func CreateRyosei(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
+func createRyosei(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 	r.ParseForm()
 	raw_json := r.Form[""][0]
 	ryoseis, err := parseRyoseiJson(raw_json)
@@ -37,7 +59,7 @@ func CreateRyosei(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 	fmt.Fprintf(w, "%s", ryoseis[0].Id)
 }
 
-func UpdateRyosei(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
+func updateRyosei(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 }
 
 func parseRyoseiJson(raw_json string) ([]*models.Ryosei, error) {
@@ -49,7 +71,7 @@ func parseRyoseiJson(raw_json string) ([]*models.Ryosei, error) {
 	return ryoseis, err
 }
 
-func CheckRyoseiUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
+func checkRyoseiUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 	r.ParseForm()
 	msg := r.Form[""][0]
 	if msg == "Success" {
@@ -62,4 +84,5 @@ func CheckRyoseiUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.
 	} else {
 		// do nothing
 	}
+	fmt.Fprintf(w, "%s", "")
 }

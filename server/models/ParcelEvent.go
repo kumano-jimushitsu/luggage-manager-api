@@ -7,6 +7,7 @@ import (
 )
 
 type ParcelEvent struct {
+	ObjectType         ObjectType
 	Id                 string         `json:"uid" db:"uid"`
 	CreatedAt          string         `json:"created_at" db:"created_at"`
 	EventType          int            `json:"event_type" db:"event_type"`
@@ -20,6 +21,10 @@ type ParcelEvent struct {
 	IsFinished         int            `json:"is_finished" db:"is_finished"`
 	IsDeleted          int            `json:"is_deleted" db:"is_deleted"`
 	SharingStatus      int            `json:"sharing_status" db:"sharing_status"`
+}
+
+func (parcelEvent ParcelEvent) GetName() string {
+	return "ParcelEvent"
 }
 
 func getEventFromSqlRows(db *sqlx.DB) ([]*ParcelEvent, error) {

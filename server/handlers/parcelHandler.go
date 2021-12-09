@@ -4,13 +4,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"luggage-api/server/database"
 	"luggage-api/server/models"
 	"net/http"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
 
-func ShowAllParcels(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
+func parcelHandler(env *database.Env) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method := strings.TrimPrefix(r.URL.Path, "/parcel/")
+
+		if method == "" {
+			showAllParcels(w, r, env.DB)
+		} else if method == "create" {
+			createParcel(w, r, env.DB)
+		} else if method == "update" {
+			updateParcel(w, r, env.DB)
+		} else if method == "check" {
+			checkParcelUpdateInTablet(w, r, env.DB)
+		} else {
+			fmt.Fprintf(w, "Wrong action: %s", r.URL.Path[len("/parcel/"):])
+		}
+	})
+}
+
+func showAllParcels(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 
 	// Get all ryoseis
 	parcels, err := models.GetAllParcels(db)
@@ -27,7 +47,7 @@ func ShowAllParcels(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 	fmt.Fprintf(w, "%s", string(json))
 }
 
-func CreateParcel(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
+func createParcel(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 	r.ParseForm()
 	raw_json := r.Form[""][0]
 	if raw_json != "" {
@@ -47,7 +67,7 @@ func CreateParcel(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 	fmt.Fprintf(w, "%s", *msg)
 }
 
-func UpdateParcel(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
+func updateParcel(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 	r.ParseForm()
 	raw_json := r.Form[""][0]
 	if raw_json != "" {
@@ -76,7 +96,7 @@ func parseParcelJson(raw_json string) ([]*models.Parcel, error) {
 	return parcels, err
 }
 
-func CheckParcelUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
+func checkParcelUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.DB) {
 	r.ParseForm()
 	msg := r.Form[""][0]
 	if msg == "Success" {

@@ -38,6 +38,10 @@ type Parcel struct {
 	SharingStatus           int            `json:"sharing_status" db:"sharing_status"`
 }
 
+func (parcel Parcel) GetName() string {
+	return "Parcel"
+}
+
 /*
 	This method will parse json this server receive into Go struct
 	Go will unmarshal a struct if it implements Unmarshaler interface

@@ -25,6 +25,10 @@ type Ryosei struct {
 	SharingStatus     int            `json:"sharing_status" db:"sharing_status"`
 }
 
+func (ryosei Ryosei) GetName() string {
+	return "Ryosei"
+}
+
 func GetAllRyoseis(db *sqlx.DB) ([]*Ryosei, error) {
 	rows, err := db.Query("SELECT * FROM ryosei")
 	if err != nil {
