@@ -2,9 +2,25 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/jmoiron/sqlx"
 )
+
+func (ryosei Ryosei) GetName() string {
+	return "ryosei"
+}
+
+func (ryosei *Ryosei) UnmarshalJSON(data []byte) error {
+
+	var record *map[string]interface{}
+	err := json.Unmarshal(data, &record)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 type Ryosei struct {
 	Id                string         `json:"uid" db:"uid"`
@@ -25,8 +41,13 @@ type Ryosei struct {
 	SharingStatus     int            `json:"sharing_status" db:"sharing_status"`
 }
 
-func (ryosei Ryosei) GetName() string {
-	return "Ryosei"
+func ParseJsonToRyoseis(raw_json string) ([]*Ryosei, error) {
+	var ryoseis []*Ryosei
+	err := json.Unmarshal([]byte(raw_json), &ryoseis)
+	if err != nil {
+		return nil, err
+	}
+	return ryoseis, err
 }
 
 func GetAllRyoseis(db *sqlx.DB) ([]*Ryosei, error) {
@@ -106,6 +127,7 @@ func getRyoseiFromSqlRows(db *sqlx.DB) ([]*Ryosei, error) {
 	}
 	return ryoseis, nil
 }
+
 func setRyosei(ryosei *Ryosei, record *map[string]interface{}) error {
 	ryosei.Id = (*record)["uid"].(string)
 	ryosei.RoomID = (*record)["room_name"].(string)
@@ -125,4 +147,22 @@ func setRyosei(ryosei *Ryosei, record *map[string]interface{}) error {
 	ryosei.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
 
 	return nil
+}
+
+func InsertRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
+	return nil
+}
+
+func UpdateRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
+	return nil
+}
+
+func GetUnsyncedRyoseisAsSqlInsert(db *sqlx.DB) (*string, error) {
+	sql := ""
+	return &sql, nil
+}
+
+func GetUnsyncedRyoseisAsSqlUpdate(db *sqlx.DB) (*string, error) {
+	sql := ""
+	return &sql, nil
 }

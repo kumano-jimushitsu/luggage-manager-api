@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -24,7 +25,16 @@ type ParcelEvent struct {
 }
 
 func (parcelEvent ParcelEvent) GetName() string {
-	return "ParcelEvent"
+	return "parcelEvent"
+}
+
+func ParseJsonToParcelEvent(raw_json string) ([]*ParcelEvent, error) {
+	var events []*ParcelEvent
+	err := json.Unmarshal([]byte(raw_json), &events)
+	if err != nil {
+		return nil, err
+	}
+	return events, err
 }
 
 func getEventFromSqlRows(db *sqlx.DB) ([]*ParcelEvent, error) {
@@ -114,4 +124,26 @@ func setEvent(event *ParcelEvent, record *map[string]interface{}) error {
 	event.IsDeleted = floatToInt((*record)["is_deleted"].(float64))
 	event.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
 	return nil
+}
+
+func GetAllParcelEvents(db *sqlx.DB) ([]*ParcelEvent, error) {
+	return []*ParcelEvent{}, nil
+}
+
+func InsertParcelEvents(db *sqlx.DB, events []*ParcelEvent) error {
+	return nil
+}
+
+func UpdateParcelEvents(db *sqlx.DB, events []*ParcelEvent) error {
+	return nil
+}
+
+func GetUnsyncedParcelEventsAsSqlInsert(db *sqlx.DB) (*string, error) {
+	sql := ""
+	return &sql, nil
+}
+
+func GetUnsyncedParcelEventsAsSqlUpdate(db *sqlx.DB) (*string, error) {
+	sql := ""
+	return &sql, nil
 }
