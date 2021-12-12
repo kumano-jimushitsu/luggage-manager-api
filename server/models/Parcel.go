@@ -269,39 +269,63 @@ func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
 
 	var err error
 
-	// TODO: MssqlのUpdate文を書く！
 	for _, parcel := range parcels {
 		update := fmt.Sprintf(`
 		UPDATE parcels
 		SET
-			owner_uid = parcel.,
-			owner_room_name = ,
-			owner_ryosei_name = ,
-			register_datetime = ,
-			register_staff_uid = ,
-			register_staff_room_name = ,
-			register_staff_ryosei_name = ,
-			placement = ,
-			fragile = ,
-			is_released = ,
-			release_agent_uid = ,
-			release_datetime = ,
-			release_staff_uid = ,
-			release_staff_room_name = ,
-			release_staff_ryosei_name = ,
-			checked_count = ,
-			is_lost = ,
-			lost_datetime = ,
-			is_returned = ,
-			returned_datetime = ,
-			is_operation_error = ,
-			operation_error_type = ,
-			note = ,
-			is_deleted = ,
-			sharing_status = 
+			owner_uid = %s,
+			owner_room_name = %s,
+			owner_ryosei_name = %s,
+			register_datetime = %s,
+			register_staff_uid = %s,
+			register_staff_room_name = %s,
+			register_staff_ryosei_name = %s,
+			placement = %d,
+			fragile = %d,
+			is_released = %d,
+			release_agent_uid = %v,
+			release_datetime = %v,
+			release_staff_uid = %v,
+			release_staff_room_name = %v,
+			release_staff_ryosei_name = %v,
+			checked_count = %d,
+			is_lost = %d,
+			lost_datetime = %v,
+			is_returned = %d,
+			returned_datetime = %v,
+			is_operation_error = %d,
+			operation_error_type = %v,
+			note = %v,
+			is_deleted = %d,
+			sharing_status = %d
 		WHERE
 			uid = %s
 		`,
+			parcel.OwnerID,
+			parcel.OwnerRoomID,
+			parcel.OwnerRyoseiName,
+			parcel.RegisteredAt,
+			parcel.RegisteredStaffID,
+			parcel.RegisteredStaffRoomName,
+			parcel.RegisteredStaffName,
+			parcel.Placement,
+			parcel.Fragile,
+			boolToInt(parcel.IsReleased),
+			nullStringToJsonFormat(parcel.ReleasedAgentID),
+			nullStringToJsonFormat(parcel.ReleasedAt),
+			nullStringToJsonFormat(parcel.ReleasedStaffID),
+			nullStringToJsonFormat(parcel.ReleasedStaffRoomID),
+			nullStringToJsonFormat(parcel.ReleasedStaffName),
+			parcel.CheckedCount,
+			boolToInt(parcel.IsLost),
+			nullStringToJsonFormat(parcel.LostAt),
+			boolToInt(parcel.IsReturned),
+			nullStringToJsonFormat(parcel.ReturnedAt),
+			boolToInt(parcel.IsOperationError),
+			nullInt32ToJsonFormat(parcel.OperationErrorType),
+			nullStringToJsonFormat(parcel.Description),
+			boolToInt(parcel.IsDeleted),
+			parcel.SharingStatus,
 			parcel.Id,
 		)
 
@@ -429,8 +453,8 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 				sharing_status
 			) VALUES(
 				"%s","%s","%s","%s","%s","%s","%s","%s",%d,%d,
-				%d,%v,%v,%v,%v,%v,%d,%v,%v,%v,
-				%v,%v,%v,%v,%v,%d
+				%d,%v,%v,%v,%v,%v,%d,%d,%v,%d,
+				%v,%d,%v,%v,%d,%d
 		);`,
 			id,
 			ownerID,
