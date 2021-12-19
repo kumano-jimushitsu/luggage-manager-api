@@ -2,7 +2,12 @@ package models
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -165,4 +170,186 @@ func GetUnsyncedRyoseisAsSqlInsert(db *sqlx.DB) (*string, error) {
 func GetUnsyncedRyoseisAsSqlUpdate(db *sqlx.DB) (*string, error) {
 	sql := ""
 	return &sql, nil
+}
+
+func GetRyoseiSeedingSql(db *sqlx.DB) (string, error) {
+	rows, err := db.Query("SELECT * FROM ryosei")
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var sql string
+
+	var id interface{}
+	var roomID interface{}
+	var name interface{}
+	var kana interface{}
+	var romaji interface{}
+	var blockID interface{}
+	var slackID interface{}
+	var status interface{}
+	var currentCount interface{}
+	var totalCount interface{}
+	var totalWaitTime interface{}
+	var lastEventID interface{}
+	var lastEventDatetime interface{}
+	var createdAt interface{}
+	var updateAt interface{}
+	var sharingStatus interface{}
+
+	for rows.Next() {
+		err := rows.Scan(
+			&id,
+			&roomID,
+			&name,
+			&kana,
+			&romaji,
+			&blockID,
+			&slackID,
+			&status,
+			&currentCount,
+			&totalCount,
+			&totalWaitTime,
+			&lastEventID,
+			&lastEventDatetime,
+			&createdAt,
+			&updateAt,
+			&sharingStatus,
+		)
+
+		if err != nil {
+			return "", err
+		}
+
+		query := fmt.Sprintf(
+			`INSERT INTO parcels(
+				uid,
+				room_name,
+				ryosei_name,
+				ryosei_name_kana,
+				ryosei_name_alphabet,
+				block_id,
+				slack_id,
+				status,
+				parcels_current_count,
+				parcels_total_count,
+				parcels_total_waittime,
+				last_event_id,
+				last_event_datetime,
+				created_at,
+				updated_at,
+				sharing_status
+			) VALUES(
+				%s,%s,%s,%s,%s,%d,%s,%d,%d,%d,%s,%s,%s,%s,%s,%d
+		);`,
+			id,
+			roomID,
+			name,
+			kana,
+			romaji,
+			blockID,
+			nullStringToJsonFormat(slackID),
+			status,
+			currentCount,
+			totalCount,
+			totalWaitTime,
+			nullStringToJsonFormat(lastEventID),
+			nullStringToJsonFormat(lastEventDatetime),
+			createdAt,
+			nullStringToJsonFormat(updateAt),
+			sharingStatus,
+		)
+		sql += query
+	}
+	return sql, nil
+}
+
+func GetRyoseiSeedingCsv(db *sqlx.DB) {
+	rows, err := db.Query("SELECT * FROM ryosei")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	var id interface{}
+	var roomID interface{}
+	var name interface{}
+	var kana interface{}
+	var romaji interface{}
+	var blockID interface{}
+	var slackID interface{}
+	var status interface{}
+	var currentCount interface{}
+	var totalCount interface{}
+	var totalWaitTime interface{}
+	var lastEventID interface{}
+	var lastEventDatetime interface{}
+	var createdAt interface{}
+	var updateAt interface{}
+	var sharingStatus interface{}
+
+	file, err := os.Create("寮生.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	cw := csv.NewWriter(file)
+	defer cw.Flush()
+
+	for rows.Next() {
+		err := rows.Scan(
+			&id,
+			&roomID,
+			&name,
+			&kana,
+			&romaji,
+			&blockID,
+			&slackID,
+			&status,
+			&currentCount,
+			&totalCount,
+			&totalWaitTime,
+			&lastEventID,
+			&lastEventDatetime,
+			&createdAt,
+			&updateAt,
+			&sharingStatus,
+		)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		createdAt, ok := createdAt.(time.Time)
+		if ok == false {
+			panic("Type assertion of createdAt into time.Time failed")
+		}
+
+		col := []string{
+			id.(string),
+			roomID.(string),
+			name.(string),
+			kana.(string),
+			romaji.(string),
+			fmt.Sprint(blockID.(int64)),
+			nullStringToJsonFormat(slackID),
+			fmt.Sprint(status.(int64)),
+			fmt.Sprint(currentCount.(int64)),
+			fmt.Sprint(totalCount.(int64)),
+			totalWaitTime.(string),
+			nullStringToJsonFormat(lastEventID),
+			nullTimeToJsonFormat(lastEventDatetime),
+			nullTimeToJsonFormat(createdAt),
+			nullTimeToJsonFormat(updateAt),
+			fmt.Sprint(sharingStatus.(int64)),
+		}
+
+		cw.Write(col)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		panic(err)
+	}
 }

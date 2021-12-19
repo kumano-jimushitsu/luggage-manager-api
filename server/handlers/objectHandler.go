@@ -124,3 +124,9 @@ func checkObjectUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.
 	}
 	fmt.Fprintf(w, "%s", "")
 }
+
+func (routes *Routes) InitRyoseiHandler(env *database.Env) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		models.GetRyoseiSeedingCsv(env.DB)
+	})
+}
