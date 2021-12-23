@@ -346,7 +346,7 @@ func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
 }
 
 /*
-	Return SQL with sharing status 20 and 21 to the tablet
+	Return SQL with sharing status 20 to the tablet
 */
 func GetUnsyncedParcelsAsSqlInsert(db *sqlx.DB) (*string, error) {
 	rows, err := db.Query("SELECT * FROM parcels WHERE sharing_status = 20")

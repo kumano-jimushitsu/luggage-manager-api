@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"luggage-api/server/database"
-	"luggage-api/server/handlers"
+	handlers "luggage-api/server/handler"
 	"luggage-api/server/models"
 	"net/http"
 
