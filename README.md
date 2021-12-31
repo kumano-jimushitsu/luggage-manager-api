@@ -2,10 +2,23 @@
 
 Go API for Kumano luggage management app.
 
+# Version
+```
+go1.17.2
+```
+
 # Build
 
 ```
-docker-compose --env-file config/.env.sample up
+cd server
+go mod download  // download modules
 ```
 
-See localhost:8080 on your browser
+# Run
+```
+cd server
+go build -o . ./main/server.go ./main/routes.go  // bundle go files
+./server  // execute
+```
+
+the host is localhost:8080
