@@ -74,6 +74,32 @@ func nullStringToJsonFormat(val interface{}) string {
 	}
 }
 
+func sqlNullStringToJsonFormat(val sql.NullString) string {
+	if !val.Valid {
+		return "null"
+	} else {
+		return "\"" + val.String + "\""
+	}
+}
+
+func stringToMssqlDateTime(val string) (string, error) {
+	formatOld := "06/01/02 15:04:05"
+	formatNew := "2006-01-02 15:04:05"
+	res, err := time.Parse(formatOld, val)
+	return res.Format(formatNew), err
+}
+
+func sqlNullStringToMssqlDateTime(val sql.NullString) (string, error) {
+	formatOld := "06/01/02 15:04:05"
+	formatNew := "2006-01-02 15:04:05"
+	if !val.Valid {
+		return "null", nil
+	} else {
+		res, err := time.Parse(formatOld, val.String)
+		return "'" + res.Format(formatNew) + "'", err
+	}
+}
+
 func nullTimeToJsonFormat(val interface{}) string {
 	if reflect.TypeOf(val) == nil {
 		return "null"

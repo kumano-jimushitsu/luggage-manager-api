@@ -183,6 +183,63 @@ func getParcelsFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*Parcel, error) {
 	return parcels, nil
 }
 
+var insert string = `
+INSERT INTO parcels(
+	uid,
+	owner_uid,
+	owner_room_name,
+	owner_ryosei_name,
+	register_datetime,
+	register_staff_uid,
+	register_staff_room_name,
+	register_staff_ryosei_name,
+	placement,
+	fragile,
+	is_released,
+	release_agent_uid,
+	release_datetime,
+	release_staff_uid,
+	release_staff_room_name,
+	release_staff_ryosei_name,
+	checked_count,
+	is_lost,
+	lost_datetime,
+	is_returned,
+	returned_datetime,
+	is_operation_error,
+	operation_error_type,
+	note,
+	is_deleted,
+	sharing_status
+) VALUES(
+	:uid,
+	:owner_uid,
+	:owner_room_name,
+	:owner_ryosei_name,
+	:register_datetime,
+	:register_staff_uid,
+	:register_staff_room_name,
+	:register_staff_ryosei_name,
+	:placement,
+	:fragile,
+	:is_released,
+	:release_agent_uid,
+	:release_datetime,
+	:release_staff_uid,
+	:release_staff_room_name,
+	:release_staff_ryosei_name,
+	:checked_count,
+	:is_lost,
+	:lost_datetime,
+	:is_returned,
+	:returned_datetime,
+	:is_operation_error,
+	:operation_error_type,
+	:note,
+	:is_deleted,
+	:sharing_status
+)`
+
 /*
 	Insert new parcels into DB
 */
@@ -190,65 +247,12 @@ func InsertParcels(db *sqlx.DB, parcels []*Parcel) error {
 
 	var err error
 
-	insert := `
-	INSERT INTO parcels(
-		uid,
-		owner_uid,
-		owner_room_name,
-		owner_ryosei_name,
-		register_datetime,
-		register_staff_uid,
-		register_staff_room_name,
-		register_staff_ryosei_name,
-		placement,
-		fragile,
-		is_released,
-		release_agent_uid,
-		release_datetime,
-		release_staff_uid,
-		release_staff_room_name,
-		release_staff_ryosei_name,
-		checked_count,
-		is_lost,
-		lost_datetime,
-		is_returned,
-		returned_datetime,
-		is_operation_error,
-		operation_error_type,
-		note,
-		is_deleted,
-		sharing_status
-	) VALUES(
-		:uid,
-		:owner_uid,
-		:owner_room_name,
-		:owner_ryosei_name,
-		:register_datetime,
-		:register_staff_uid,
-		:register_staff_room_name,
-		:register_staff_ryosei_name,
-		:placement,
-		:fragile,
-		:is_released,
-		:release_agent_uid,
-		:release_datetime,
-		:release_staff_uid,
-		:release_staff_room_name,
-		:release_staff_ryosei_name,
-		:checked_count,
-		:is_lost,
-		:lost_datetime,
-		:is_returned,
-		:returned_datetime,
-		:is_operation_error,
-		:operation_error_type,
-		:note,
-		:is_deleted,
-		:sharing_status
-	)`
-
 	for _, parcel := range parcels {
 		_, err = db.NamedExec(insert, parcel)
+		if err != nil {
+			return err
+		}
+		err = IncrementParcelCount(db, *parcel)
 		if err != nil {
 			return err
 		}
@@ -266,76 +270,98 @@ func InsertParcels(db *sqlx.DB, parcels []*Parcel) error {
 	Update records in the table with the latest parcels
 */
 func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
-
-	var err error
-
 	for _, parcel := range parcels {
-		update := fmt.Sprintf(`
-		UPDATE parcels
-		SET
-			owner_uid = %s,
-			owner_room_name = %s,
-			owner_ryosei_name = %s,
-			register_datetime = %s,
-			register_staff_uid = %s,
-			register_staff_room_name = %s,
-			register_staff_ryosei_name = %s,
-			placement = %d,
-			fragile = %d,
-			is_released = %d,
-			release_agent_uid = %v,
-			release_datetime = %v,
-			release_staff_uid = %v,
-			release_staff_room_name = %v,
-			release_staff_ryosei_name = %v,
-			checked_count = %d,
-			is_lost = %d,
-			lost_datetime = %v,
-			is_returned = %d,
-			returned_datetime = %v,
-			is_operation_error = %d,
-			operation_error_type = %v,
-			note = %v,
-			is_deleted = %d,
-			sharing_status = %d
-		WHERE
-			uid = %s
-		`,
-			parcel.OwnerID,
-			parcel.OwnerRoomID,
-			parcel.OwnerRyoseiName,
-			parcel.RegisteredAt,
-			parcel.RegisteredStaffID,
-			parcel.RegisteredStaffRoomName,
-			parcel.RegisteredStaffName,
-			parcel.Placement,
-			parcel.Fragile,
-			boolToInt(parcel.IsReleased),
-			nullStringToJsonFormat(parcel.ReleasedAgentID),
-			nullStringToJsonFormat(parcel.ReleasedAt),
-			nullStringToJsonFormat(parcel.ReleasedStaffID),
-			nullStringToJsonFormat(parcel.ReleasedStaffRoomID),
-			nullStringToJsonFormat(parcel.ReleasedStaffName),
-			parcel.CheckedCount,
-			boolToInt(parcel.IsLost),
-			nullStringToJsonFormat(parcel.LostAt),
-			boolToInt(parcel.IsReturned),
-			nullStringToJsonFormat(parcel.ReturnedAt),
-			boolToInt(parcel.IsOperationError),
-			nullInt32ToJsonFormat(parcel.OperationErrorType),
-			nullStringToJsonFormat(parcel.Description),
-			boolToInt(parcel.IsDeleted),
-			parcel.SharingStatus,
-			parcel.Id,
-		)
 
-		_, err = db.Exec(update, parcel)
+		var sql string
+
+		registeredAt, _ := stringToMssqlDateTime(parcel.RegisteredAt)
+		releasedAt, _ := sqlNullStringToMssqlDateTime(parcel.ReleasedAt)
+		lostAt, _ := sqlNullStringToMssqlDateTime(parcel.LostAt)
+		returnedAt, _ := sqlNullStringToMssqlDateTime(parcel.ReturnedAt)
+
+		// sharing_status=11だけどPCにデータが無い時の処理が必要
+		count, err := getParcelCountByUid(db, parcel.Id)
 		if err != nil {
 			return err
 		}
 
-		update = `UPDATE parcels SET sharing_status = 30 WHERE uid = '` + parcel.Id + `' AND sharing_status = 11`
-		_, err = db.Exec(update)
+		if count == 0 {
+			_, err = db.NamedExec(insert, parcel)
+			if err != nil {
+				return err
+			}
+			err = IncrementParcelCount(db, *parcel)
+			if err != nil {
+				return err
+			}
+		} else {
+			sql = fmt.Sprintf(`
+			UPDATE parcels
+			SET
+				uid = '%s',
+				owner_uid = '%s',
+				owner_room_name = '%s',
+				owner_ryosei_name = '%s',
+				register_datetime = '%s',
+				register_staff_uid = '%s',
+				register_staff_room_name = '%s',
+				register_staff_ryosei_name = '%s',
+				placement = %d,
+				fragile = %d,
+				is_released = %d,
+				release_agent_uid = %v,
+				release_datetime = %v,
+				release_staff_uid = %v,
+				release_staff_room_name = %v,
+				release_staff_ryosei_name = %v,
+				checked_count = %d,
+				is_lost = %d,
+				lost_datetime = %v,
+				is_returned = %d,
+				returned_datetime = %v,
+				is_operation_error = %d,
+				operation_error_type = %v,
+				note = %v,
+				is_deleted = %d,
+				sharing_status = %d
+			WHERE
+				uid = '%s'
+			`,
+				parcel.Id,
+				parcel.OwnerID,
+				parcel.OwnerRoomID,
+				parcel.OwnerRyoseiName,
+				registeredAt,
+				parcel.RegisteredStaffID,
+				parcel.RegisteredStaffRoomName,
+				parcel.RegisteredStaffName,
+				parcel.Placement,
+				parcel.Fragile,
+				boolToInt(parcel.IsReleased),
+				sqlNullStringToJsonFormat(parcel.ReleasedAgentID),
+				releasedAt,
+				sqlNullStringToJsonFormat(parcel.ReleasedStaffID),
+				sqlNullStringToJsonFormat(parcel.ReleasedStaffRoomID),
+				sqlNullStringToJsonFormat(parcel.ReleasedStaffName),
+				parcel.CheckedCount,
+				boolToInt(parcel.IsLost),
+				lostAt,
+				boolToInt(parcel.IsReturned),
+				returnedAt,
+				boolToInt(parcel.IsOperationError),
+				nullInt32ToJsonFormat(parcel.OperationErrorType),
+				sqlNullStringToJsonFormat(parcel.Description),
+				boolToInt(parcel.IsDeleted),
+				parcel.SharingStatus,
+				parcel.Id,
+			)
+			_, err = db.Exec(sql)
+			if err != nil {
+				return err
+			}
+		}
+		sql = `UPDATE parcels SET sharing_status = 30 WHERE uid = '` + parcel.Id + `' AND sharing_status = 11`
+		_, err = db.Exec(sql)
 
 		if err != nil {
 			return err
@@ -343,6 +369,21 @@ func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
 	}
 
 	return nil
+}
+
+func getParcelCountByUid(db *sqlx.DB, uid string) (int, error) {
+	var count int
+	query := fmt.Sprintf("SELECT * FROM parcels WHERE uid = '%s'", uid)
+	rows, err := db.Query(query)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		count++
+	}
+	return count, nil
 }
 
 /*
@@ -452,7 +493,7 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 				is_deleted,
 				sharing_status
 			) VALUES(
-				"%s","%s","%s","%s","%s","%s","%s","%s",%d,%d,
+				'%s','%s','%s','%s','%s','%s','%s','%s',%d,%d,
 				%d,%v,%v,%v,%v,%v,%d,%d,%v,%d,
 				%v,%d,%v,%v,%d,%d
 		);`,
@@ -484,6 +525,9 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 			sharingStatus,
 		)
 		sql += query
+
+		// increment parcels_current_count & parcels_total_count
+		sql += IncrementParcelCountSql(db, ownerID.(string))
 	}
 	return sql
 }
@@ -566,40 +610,38 @@ func getSqlUpdate(db *sqlx.DB, rows *sql.Rows) string {
 			return err.Error()
 		}
 
-		// TODO: sqliteのUpdate文を書く！！
-		query := fmt.Sprintf(
-			`INSERT INTO parcels(
-				uid,
-				owner_uid,
-				owner_room_name,
-				owner_ryosei_name,
-				register_datetime,
-				register_staff_uid,
-				register_staff_room_name,
-				register_staff_ryosei_name,
-				placement,
-				fragile,
-				is_released,
-				release_agent_uid,
-				release_datetime,
-				release_staff_uid,
-				release_staff_room_name,
-				release_staff_ryosei_name,
-				checked_count,
-				is_lost,
-				lost_datetime,
-				is_returned,
-				returned_datetime,
-				is_operation_error,
-				operation_error_type,
-				note,
-				is_deleted,
-				sharing_status
-			) VALUES(
-				"%s","%s","%s","%s","%s","%s","%s","%s",%d,%d,
-				%d,%v,%v,%v,%v,%v,%d,%v,%v,%v,
-				%v,%v,%v,%v,%v,%d
-		);`,
+		query := fmt.Sprintf(`
+			UPDATE parcels
+			SET
+				uid = '%s',
+				owner_uid = '%s',
+				owner_room_name = '%s',
+				owner_ryosei_name = '%s',
+				register_datetime = '%s',
+				register_staff_uid = '%s',
+				register_staff_room_name = '%s',
+				register_staff_ryosei_name = '%s',
+				placement = %d,
+				fragile = %d,
+				is_released = %d,
+				release_agent_uid = %v,
+				release_datetime = %v,
+				release_staff_uid = %v,
+				release_staff_room_name = %v,
+				release_staff_ryosei_name = %v,
+				checked_count = %d,
+				is_lost = %d,
+				lost_datetime = %v,
+				is_returned = %d,
+				returned_datetime = %v,
+				is_operation_error = %d,
+				operation_error_type = %v,
+				note = %v,
+				is_deleted = %d,
+				sharing_status = %d
+			WHERE
+				uid = '%s'
+			;`,
 			id,
 			ownerID,
 			ownerRoomID,
@@ -626,6 +668,7 @@ func getSqlUpdate(db *sqlx.DB, rows *sql.Rows) string {
 			nullStringToJsonFormat(description),
 			boolToInt(isDeleted),
 			sharingStatus,
+			id,
 		)
 		sql += query
 	}

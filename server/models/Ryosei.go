@@ -172,6 +172,7 @@ func GetUnsyncedRyoseisAsSqlUpdate(db *sqlx.DB) (*string, error) {
 	return &sql, nil
 }
 
+// [Deprecated] Make a long sql insert from data in DB
 func GetRyoseiSeedingSql(db *sqlx.DB) (string, error) {
 	rows, err := db.Query("SELECT * FROM ryosei")
 	if err != nil {
@@ -223,7 +224,7 @@ func GetRyoseiSeedingSql(db *sqlx.DB) (string, error) {
 		}
 
 		query := fmt.Sprintf(
-			`INSERT INTO parcels(
+			`INSERT INTO ryosei(
 				uid,
 				room_name,
 				ryosei_name,
@@ -265,6 +266,9 @@ func GetRyoseiSeedingSql(db *sqlx.DB) (string, error) {
 	return sql, nil
 }
 
+/*
+	[Depreated] Seed database from csv ryosei data
+*/
 func GetRyoseiSeedingCsv(db *sqlx.DB) {
 	rows, err := db.Query("SELECT * FROM ryosei")
 	if err != nil {
@@ -352,4 +356,19 @@ func GetRyoseiSeedingCsv(db *sqlx.DB) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func IncrementParcelCount(db *sqlx.DB, parcel Parcel) error {
+	ownerId := parcel.OwnerID
+	sql := fmt.Sprintf("UPDATE ryosei SET parcels_current_count = parcels_current_count + 1, parcels_total_count = parcels_total_count + 1 WHERE uid = '%s'", ownerId)
+	_, err := db.Exec(sql)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func IncrementParcelCountSql(db *sqlx.DB, ownerId string) string {
+	sql := fmt.Sprintf("UPDATE ryosei SET parcels_current_count = parcels_current_count + 1, parcels_total_count = parcels_total_count + 1 WHERE ryosei_name = '%s';", ownerId)
+	return sql
 }

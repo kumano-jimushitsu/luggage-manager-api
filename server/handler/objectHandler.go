@@ -77,11 +77,11 @@ func createObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectTy
 	fmt.Fprintf(w, "%s", *msg)
 }
 
-func updateObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objeType models.ObjectType) {
+func updateObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 	r.ParseForm()
 	raw_json := r.Form[""][0]
 	if raw_json != "" {
-		objects, err := models.ParseJsonToObjects(raw_json, objeType)
+		objects, err := models.ParseJsonToObjects(raw_json, objectType)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -90,7 +90,7 @@ func updateObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objeType
 			log.Fatal(err)
 		}
 	}
-	msg, err := models.GetUnsyncedObjectsAsSqlUpdate(db, objeType)
+	msg, err := models.GetUnsyncedObjectsAsSqlUpdate(db, objectType)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -101,27 +101,42 @@ func checkObjectUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.
 
 	r.ParseForm()
 	msg := r.Form[""][0]
+	msg = msg[:6]
+
+	if msg == "" {
+		// do nothing
+		return
+	}
+
+	var sharing_status int
+
+	switch msg {
+	case "create":
+		sharing_status = 20
+	case "update":
+		sharing_status = 21
+	default:
+		log.Fatal("Unknown method")
+	}
 
 	var update string
+
 	switch objectType.(type) {
 	case models.Ryosei:
-		update = "UPDATE ryosei SET sharing_status = 30 WHERE sharing_status = 20 OR sharing_status = 21"
+		update = "UPDATE ryosei SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
 	case models.Parcel:
-		update = "UPDATE parcels SET sharing_status = 30 WHERE sharing_status = 20 OR sharing_status = 21"
+		update = "UPDATE parcels SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
 	case models.ParcelEvent:
-		update = "UPDATE parcel_event SET sharing_status = 30 WHERE sharing_status = 20 OR sharing_status = 21"
+		update = "UPDATE parcel_event SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
 	default:
 		log.Fatal("Unknown type")
 	}
 
-	if msg == "Success" {
-		_, err := db.Exec(update)
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		// do nothing
+	_, err := db.Exec(update)
+	if err != nil {
+		log.Fatal(err)
 	}
+
 	fmt.Fprintf(w, "%s", "")
 }
 
