@@ -252,9 +252,6 @@ func InsertParcels(db *sqlx.DB, parcels []*Parcel) error {
 		if err != nil {
 			return err
 		}
-		if err != nil {
-			return err
-		}
 		update := `UPDATE parcels SET sharing_status = 30 WHERE uid = '` + parcel.Id + `' AND sharing_status = 10`
 		_, err = db.Exec(update)
 		if err != nil {
