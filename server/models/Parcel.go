@@ -183,7 +183,7 @@ func getParcelsFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*Parcel, error) {
 	return parcels, nil
 }
 
-var insert string = `
+var parcelInsert string = `
 INSERT INTO parcels(
 	uid,
 	owner_uid,
@@ -211,7 +211,7 @@ INSERT INTO parcels(
 	note,
 	is_deleted,
 	sharing_status
-) VALUES(
+) VALUES (
 	:uid,
 	:owner_uid,
 	:owner_room_name,
@@ -248,11 +248,7 @@ func InsertParcels(db *sqlx.DB, parcels []*Parcel) error {
 	var err error
 
 	for _, parcel := range parcels {
-		_, err = db.NamedExec(insert, parcel)
-		if err != nil {
-			return err
-		}
-		err = IncrementParcelCount(db, *parcel)
+		_, err = db.NamedExec(parcelInsert, parcel)
 		if err != nil {
 			return err
 		}
@@ -286,11 +282,7 @@ func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
 		}
 
 		if count == 0 {
-			_, err = db.NamedExec(insert, parcel)
-			if err != nil {
-				return err
-			}
-			err = IncrementParcelCount(db, *parcel)
+			_, err = db.NamedExec(parcelInsert, parcel)
 			if err != nil {
 				return err
 			}
@@ -525,9 +517,6 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 			sharingStatus,
 		)
 		sql += query
-
-		// increment parcels_current_count & parcels_total_count
-		sql += IncrementParcelCountSql(db, ownerID.(string))
 	}
 	return sql
 }

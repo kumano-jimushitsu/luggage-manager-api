@@ -55,8 +55,6 @@ func UpdateObjects(db *sqlx.DB, objects interface{}) error {
 		return UpdateRyoseis(db, objects.([]*Ryosei))
 	case []*Parcel:
 		return UpdateParcels(db, objects.([]*Parcel))
-	case []*ParcelEvent:
-		return UpdateParcelEvents(db, objects.([]*ParcelEvent))
 	default:
 		return errors.New("Unknown objects type")
 	}
@@ -81,8 +79,6 @@ func GetUnsyncedObjectsAsSqlUpdate(db *sqlx.DB, objectType ObjectType) (*string,
 		return GetUnsyncedRyoseisAsSqlUpdate(db)
 	case Parcel:
 		return GetUnsyncedParcelsAsSqlUpdate(db)
-	case ParcelEvent:
-		return GetUnsyncedParcelEventsAsSqlUpdate(db)
 	default:
 		return nil, errors.New("Unknown objects type")
 	}

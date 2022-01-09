@@ -3,9 +3,57 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
+
+/*
+	Implement ObjectType interface
+*/
+func (parcelEvent ParcelEvent) GetName() string {
+	return "parcelEvent"
+}
+
+/*
+	Implement Unmarshaler interface
+*/
+func (parcelEvent *ParcelEvent) UnmarshalJSON(data []byte) error {
+
+	// get parcel events
+	var record *map[string]interface{}
+	err := json.Unmarshal(data, &record)
+	if err != nil {
+		return err
+	}
+
+	// parse number(float64) type to bool
+	err = setParcelEvent(parcelEvent, record)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func setParcelEvent(parcelEvent *ParcelEvent, record *map[string]interface{}) error {
+	parcelEvent.Id = (*record)["uid"].(string)
+	parcelEvent.CreatedAt = (*record)["created_at"].(string)
+	parcelEvent.EventType = floatToInt((*record)["event_type"].(float64))
+	parcelEvent.ParcelUid = (*record)["parcel_uid"].(string)
+	parcelEvent.RyoseiUid = (*record)["ryosei_uid"].(string)
+	parcelEvent.RoomID = (*record)["room_name"].(string)
+	parcelEvent.Name = (*record)["ryosei_name"].(string)
+	parcelEvent.TargetID = toNullString((*record)["target_event_uid"])
+	parcelEvent.Note = toNullString((*record)["note"])
+	parcelEvent.IsAfterPeriodicCheck = floatToInt((*record)["is_after_fixed_time"].(float64))
+	parcelEvent.IsFinished = floatToInt((*record)["is_finished"].(float64))
+	parcelEvent.IsDeleted = floatToInt((*record)["is_deleted"].(float64))
+	parcelEvent.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
+
+	return nil
+}
 
 type ParcelEvent struct {
 	ObjectType         ObjectType
@@ -18,16 +66,15 @@ type ParcelEvent struct {
 	Name               string         `json:"ryosei_name" db:"ryosei_name"`
 	TargetID           sql.NullString `json:"target_event_uid" db:"target_event_uid"`
 	Note               sql.NullString `json:"note" db:"note"`
-	AfterPeriodicCheck int            `json:"is_after_fixed_time" db:"is_after_fixed_time"`
+	IsAfterPeriodicCheck int            `json:"is_after_fixed_time" db:"is_after_fixed_time"`
 	IsFinished         int            `json:"is_finished" db:"is_finished"`
 	IsDeleted          int            `json:"is_deleted" db:"is_deleted"`
 	SharingStatus      int            `json:"sharing_status" db:"sharing_status"`
 }
 
-func (parcelEvent ParcelEvent) GetName() string {
-	return "parcelEvent"
-}
-
+/*
+	Parse json and return the slice of struct ParcelEvent
+*/
 func ParseJsonToParcelEvent(raw_json string) ([]*ParcelEvent, error) {
 	var events []*ParcelEvent
 	err := json.Unmarshal([]byte(raw_json), &events)
@@ -37,13 +84,28 @@ func ParseJsonToParcelEvent(raw_json string) ([]*ParcelEvent, error) {
 	return events, err
 }
 
-func getEventFromSqlRows(db *sqlx.DB) ([]*ParcelEvent, error) {
-	rows, err := db.Query("SELECT * FROM parcel_event WHERE sharing_status = 20 OR sharing_status = 21")
+/*
+	Return all records in the parcel_event table
+*/
+func GetAllParcelEvents(db *sqlx.DB) ([]*ParcelEvent, error) {
+	rows, err := db.Query("SELECT * FROM parcel_event")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	events, err := getParcelEventsFromSqlRows(db, rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return events, nil
+}
+
+func getParcelEventsFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*ParcelEvent, error) {
+	var isAfterPeriodicCheck bool
+	var isFinished bool
+	var isDeleted bool
 	events := make([]*ParcelEvent, 0)
 	for rows.Next() {
 		event := new(ParcelEvent)
@@ -57,14 +119,19 @@ func getEventFromSqlRows(db *sqlx.DB) ([]*ParcelEvent, error) {
 			&event.Name,
 			&event.TargetID,
 			&event.Note,
-			&event.AfterPeriodicCheck,
-			&event.IsFinished,
-			&event.IsDeleted,
+			&isAfterPeriodicCheck,
+			&isFinished,
+			&isDeleted,
 			&event.SharingStatus,
 		)
 		if err != nil {
 			return nil, err
 		}
+
+		event.IsAfterPeriodicCheck = boolToInt(isAfterPeriodicCheck)
+		event.IsFinished = boolToInt(isFinished)
+		event.IsDeleted = boolToInt(isDeleted)
+
 		events = append(events, event)
 	}
 	if err := rows.Err(); err != nil {
@@ -73,77 +140,145 @@ func getEventFromSqlRows(db *sqlx.DB) ([]*ParcelEvent, error) {
 	return events, nil
 }
 
-func GetAllEvent(db *sqlx.DB) ([]*ParcelEvent, error) {
-	rows, err := db.Query("SELECT * FROM parcel_event")
+var parcelEventInsert string = `
+INSERT INTO parcel_event(
+	uid,
+	created_at,
+	event_type,
+	parcel_uid,
+	ryosei_uid,
+	room_name,
+	ryosei_name,
+	target_event_uid,
+	note,
+	is_after_fixed_time,
+	is_finished,
+	is_deleted,
+	sharing_status
+) VALUES (
+	:uid,
+	:created_at,
+	:event_type,
+	:parcel_uid,
+	:ryosei_uid,
+	:room_name,
+	:ryosei_name,
+	:target_event_uid,
+	:note,
+	:is_after_fixed_time,
+	:is_finished,
+	:is_deleted,
+	:sharing_status
+)`
+
+/*
+	Insert new parcelEvent into DB
+*/
+func InsertParcelEvents(db *sqlx.DB, events []*ParcelEvent) error {
+	
+	var err error
+
+	for _, event := range events {
+		_, err = db.NamedExec(parcelEventInsert, event)
+		if err != nil {
+			return err
+		}
+		update := `UPDATE parcel_event SET sharing_status = 30 WHERE uid = '` + event.Id + `' AND sharing_status = 10`
+		_, err = db.Exec(update)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+/*
+	Return SQL with sharing status 20 to the tablet
+*/
+func GetUnsyncedParcelEventsAsSqlInsert(db *sqlx.DB) (*string, error) {
+	rows, err := db.Query("SELECT * FROM parcel_event WHERE sharing_status = 20")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	events := make([]*ParcelEvent, 0)
+	sql := getParcelEventSqlInsert(db, rows)
+
+	return &sql, nil
+}
+
+func getParcelEventSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
+	var id interface{}
+	var createdAt interface{}
+	var eventType interface{}
+	var parcelUid interface{}
+	var ryoseiUid interface{}
+	var roomId interface{}
+	var name interface{}
+	var targetId interface{}
+	var note interface{}
+	var isAfterPeriodicCheck interface{}
+	var isFinished interface{}
+	var isDeleted interface{}
+	var sharingStatus interface{}
+
+	sql := ""
+
 	for rows.Next() {
-		event := new(ParcelEvent)
 		err := rows.Scan(
-			&event.Id,
-			&event.CreatedAt,
-			&event.EventType,
-			&event.ParcelUid,
-			&event.RyoseiUid,
-			&event.RoomID,
-			&event.Name,
-			&event.TargetID,
-			&event.Note,
-			&event.AfterPeriodicCheck,
-			&event.IsFinished,
-			&event.IsDeleted,
-			&event.SharingStatus,
+			&id,
+			&createdAt,
+			&eventType,
+			&parcelUid,
+			&ryoseiUid,
+			&roomId,
+			&name,
+			&targetId,
+			&note,
+			&isAfterPeriodicCheck,
+			&isFinished,
+			&isDeleted,
+			&sharingStatus,
 		)
+
 		if err != nil {
-			return nil, err
+			return err.Error()
 		}
-		events = append(events, event)
+
+		query := fmt.Sprintf(
+			`INSERT INTO parcel_event(
+				uid,
+				created_at,
+				event_type,
+				parcel_uid,
+				ryosei_uid,
+				room_name,
+				ryosei_name,
+				target_event_uid,
+				note,
+				is_after_fixed_time,
+				is_finished,
+				is_deleted,
+				sharing_status
+			) VALUES (
+				'%s','%s',%d,'%s','%s','%s','%s',%v,%v,%d,%d,%d,%d
+		);`,
+			id,
+			createdAt.(time.Time).Format("2006-01-02 15:04:05"),
+			eventType,
+			parcelUid,
+			ryoseiUid,
+			roomId,
+			name,
+			nullStringToJsonFormat(targetId),
+			nullStringToJsonFormat(note),
+			boolToInt(isAfterPeriodicCheck),
+			boolToInt(isFinished),
+			boolToInt(isDeleted),
+			sharingStatus,
+		)
+		sql += query
 	}
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-	return events, nil
-}
-
-func setEvent(event *ParcelEvent, record *map[string]interface{}) error {
-	event.Id = (*record)["uid"].(string)
-	event.CreatedAt = (*record)["created_at"].(string)
-	event.EventType = floatToInt((*record)["event_type"].(float64))
-	event.ParcelUid = (*record)["parcel_uid"].(string)
-	event.RyoseiUid = (*record)["ryosei_uid"].(string)
-	event.RoomID = (*record)["room_name"].(string)
-	event.Name = (*record)["ryosei_name"].(string)
-	event.TargetID = toNullString((*record)["target_event_uid"].(string))
-	event.Note = toNullString((*record)["note"].(string))
-	event.AfterPeriodicCheck = floatToInt((*record)["is_after_fixed_time"].(float64))
-	event.IsFinished = floatToInt((*record)["is_finished"].(float64))
-	event.IsDeleted = floatToInt((*record)["is_deleted"].(float64))
-	event.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
-	return nil
-}
-
-func GetAllParcelEvents(db *sqlx.DB) ([]*ParcelEvent, error) {
-	return []*ParcelEvent{}, nil
-}
-
-func InsertParcelEvents(db *sqlx.DB, events []*ParcelEvent) error {
-	return nil
-}
-
-func UpdateParcelEvents(db *sqlx.DB, events []*ParcelEvent) error {
-	return nil
-}
-
-func GetUnsyncedParcelEventsAsSqlInsert(db *sqlx.DB) (*string, error) {
-	sql := ""
-	return &sql, nil
-}
-
-func GetUnsyncedParcelEventsAsSqlUpdate(db *sqlx.DB) (*string, error) {
-	sql := ""
-	return &sql, nil
+	return sql
 }
