@@ -36,18 +36,18 @@ func setRyosei(ryosei *Ryosei, record *map[string]interface{}) error {
 	ryosei.Id = (*record)["uid"].(string)
 	ryosei.RoomID = (*record)["room_name"].(string)
 	ryosei.Name = (*record)["ryosei_name"].(string)
-	ryosei.Kana = (*record)["ryosei_name_kana"].(string)
-	ryosei.Romaji = (*record)["ryosei_alphabet"].(string)
+	ryosei.Kana = toNullString((*record)["ryosei_name_kana"])
+	ryosei.Romaji = toNullString((*record)["ryosei_name_alphabet"])
 	ryosei.BlockID = floatToInt((*record)["block_id"].(float64))
-	ryosei.SlackID = toNullString((*record)["slack_id"].(string))
+	ryosei.SlackID = toNullString((*record)["slack_id"])
 	ryosei.Status = floatToInt((*record)["status"].(float64))
 	ryosei.CurrentCount = floatToInt((*record)["parcels_current_count"].(float64))
 	ryosei.TotalCount = floatToInt((*record)["parcels_total_count"].(float64))
 	ryosei.TotalWaitTime = (*record)["parcels_total_waittime"].(string)
-	ryosei.LastEventID = toNullString((*record)["last_event_id"].(string))
-	ryosei.LastEventDatetime = toNullString((*record)["last_event_datetime"].(string))
+	ryosei.LastEventID = toNullString((*record)["last_event_id"])
+	ryosei.LastEventDatetime = toNullString((*record)["last_event_datetime"])
 	ryosei.CreatedAt = (*record)["created_at"].(string)
-	ryosei.UpdatedAt = toNullString((*record)["updated_at"].(string))
+	ryosei.UpdatedAt = toNullString((*record)["updated_at"])
 	ryosei.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
 
 	return nil
@@ -57,8 +57,8 @@ type Ryosei struct {
 	Id                string         `json:"uid" db:"uid"`
 	RoomID            string         `json:"room_name" db:"room_name"`
 	Name              string         `json:"ryosei_name" db:"ryosei_name"`
-	Kana              string         `json:"ryosei_name_kana" db:"ryosei_name_kana"`
-	Romaji            string         `json:"ryosei_name_alphabet" db:"ryosei_name_alphabet"`
+	Kana              sql.NullString `json:"ryosei_name_kana" db:"ryosei_name_kana"`
+	Romaji            sql.NullString `json:"ryosei_name_alphabet" db:"ryosei_name_alphabet"`
 	BlockID           int            `json:"block_id" db:"block_id"`
 	SlackID           sql.NullString `json:"slack_id" db:"slack_id"`
 	Status            int            `json:"status" db:"status"`
@@ -131,19 +131,20 @@ func getRyoseisFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*Ryosei, error) {
 }
 
 var ryoseiInsert string = `
-INSERT INTO parcels(
+INSERT INTO ryosei(
 	uid,
 	room_name,
 	ryosei_name,
 	ryosei_name_kana,
 	ryosei_name_alphabet,
-	block_ud,
+	block_id,
 	slack_id,
 	status,
-	parcel_current_count,
+	parcels_current_count,
 	parcels_total_count,
 	parcels_total_waittime,
 	last_event_id,
+	last_event_datetime,
 	created_at,
 	updated_at,
 	sharing_status
@@ -153,20 +154,21 @@ INSERT INTO parcels(
 	:ryosei_name,
 	:ryosei_name_kana,
 	:ryosei_name_alphabet,
-	:block_ud,
+	:block_id,
 	:slack_id,
 	:status,
-	:parcel_current_count,
+	:parcels_current_count,
 	:parcels_total_count,
 	:parcels_total_waittime,
 	:last_event_id,
+	:last_event_datetime,
 	:created_at,
 	:updated_at,
 	:sharing_status
 )`
 
 func InsertRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
-	
+
 	var err error
 
 	for _, ryosei := range ryoseis {
@@ -186,28 +188,271 @@ func InsertRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 
 func UpdateRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 	for _, ryosei := range ryoseis {
-		
-		var sql string
 
+		var sql string
+		//cratedAt, _ := sqlNullStringToMssqlDateTime(ryosei.CreatedAt)
 		updatedAt, _ := sqlNullStringToMssqlDateTime(ryosei.UpdatedAt)
 
 		// sharing_status=11だけどPCにデータが無い時の処理が必要
-		count, err := getParcelCountByUid(db, parcel.Id)
+		count, err := getParcelCountByUid(db, ryosei.Id)
+		if err != nil {
+			return err
+		}
+
+		if count == 0 {
+			_, err = db.NamedExec(ryoseiInsert, ryosei)
+			if err != nil {
+				return err
+			}
+		} else {
+			sql = fmt.Sprintf(`
+			UPDATE ryosei	
+			SET
+				uid = '%s',
+				room_name = '%s',
+				ryosei_name = '%s',
+				ryosei_name_kana = '%s',
+				ryosei_name_alphabet = '%s',
+				block_id = %d,
+				slack_id = '%s',
+				status = %d,
+				parcels_current_count = %d,
+				parcels_total_count = %d,
+				parcels_total_waittime='%s'
+				last_event_id = '%s',
+				last_event_datetime = %v,
+				created_at = '%s',
+				updated_at = '%v',
+				sharing_status = %d,
+			where 
+				uid = '%s'
+			`,
+				ryosei.Id,
+				ryosei.RoomID,
+				ryosei.Name,
+				sqlNullStringToJsonFormat(ryosei.Kana),
+				sqlNullStringToJsonFormat(ryosei.Romaji),
+				ryosei.BlockID,
+				sqlNullStringToJsonFormat(ryosei.SlackID),
+				ryosei.Status,
+				ryosei.CurrentCount,
+				ryosei.TotalCount,
+				ryosei.TotalWaitTime,
+				sqlNullStringToJsonFormat(ryosei.LastEventID),
+				sqlNullStringToJsonFormat(ryosei.LastEventDatetime),
+				ryosei.CreatedAt,
+				updatedAt,
+				ryosei.SharingStatus,
+				ryosei.Id,
+			)
+			_, err = db.Exec(sql)
+			if err != nil {
+				return err
+			}
+		}
+
+		sql = `UPDATE parcels SET sharing_status = 30 WHERE uid = '` + ryosei.Id + `' AND sharing_status = 11`
+		_, err = db.Exec(sql)
+
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
 func GetUnsyncedRyoseisAsSqlInsert(db *sqlx.DB) (*string, error) {
-	sql := ""
+	rows, err := db.Query("SELECT TOP (50) * FROM ryosei WHERE sharing_status = 20")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sql := getSqlRyoseiInsert(db, rows)
+
 	return &sql, nil
 }
 
-func GetUnsyncedRyoseisAsSqlUpdate(db *sqlx.DB) (*string, error) {
+func getSqlRyoseiInsert(db *sqlx.DB, rows *sql.Rows) string {
+	var Id interface{}
+	var RoomID interface{}
+	var Name interface{}
+	var Kana interface{}
+	var Romaji interface{}
+	var BlockID interface{}
+	var SlackID interface{}
+	var Status interface{}
+	var CurrentCount interface{}
+	var TotalCount interface{}
+	var TotalWaitTime interface{}
+	var LastEventID interface{}
+	var LastEventDatetime interface{}
+	var CreatedAt interface{}
+	var UpdatedAt interface{}
+	var SharingStatus interface{}
 	sql := ""
+	for rows.Next() {
+		err := rows.Scan(
+			&Id,
+			&RoomID,
+			&Name,
+			&Kana,
+			&Romaji,
+			&BlockID,
+			&SlackID,
+			&Status,
+			&CurrentCount,
+			&TotalCount,
+			&TotalWaitTime,
+			&LastEventID,
+			&LastEventDatetime,
+			&CreatedAt,
+			&UpdatedAt,
+			&SharingStatus,
+		)
+		if err != nil {
+			return err.Error()
+		}
+		query := fmt.Sprintf(
+			`INSRT INTO ryosei(
+				uid,
+				room_name,
+				ryosei_name,
+				ryosei_name_kana,
+				ryosei_name_alphabet,
+				block_id,
+				slack_id,
+				status,
+				parcel_current_count,
+				parcels_total_count,
+				parcels_total_waittime,
+				last_event_id,
+				last_event_datetime,
+				created_at,
+				updated_at,
+				sharing_status
+			)VALUES(
+				'%s','%s','%s',%v,'%s',%d,'%s',%d,%d,%d,'%s','%s','%s','%s','%s',%d
+			);`,
+			Id,
+			RoomID,
+			Name,
+			nullStringToJsonFormat(Kana),
+			nullStringToJsonFormat(Romaji),
+			BlockID,
+			nullStringToJsonFormat(SlackID),
+			Status,
+			CurrentCount,
+			TotalCount,
+			TotalWaitTime,
+			nullStringToJsonFormat(LastEventID),
+			nullStringToJsonFormat(LastEventDatetime),
+			CreatedAt,
+			nullStringToJsonFormat(UpdatedAt),
+			SharingStatus,
+		)
+		sql += query
+	}
+	return sql
+}
+
+func GetUnsyncedRyoseisAsSqlUpdate(db *sqlx.DB) (*string, error) {
+	rows, err := db.Query("SELECT * FROM ryosei WHERE sharing_status = 21")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sql := getSqlRyoseiUpdate(db, rows)
+
 	return &sql, nil
+}
+
+func getSqlRyoseiUpdate(db *sqlx.DB, rows *sql.Rows) string {
+	var Id interface{}
+	var RoomID interface{}
+	var Name interface{}
+	var Kana interface{}
+	var Romaji interface{}
+	var BlockID interface{}
+	var SlackID interface{}
+	var Status interface{}
+	var CurrentCount interface{}
+	var TotalCount interface{}
+	var TotalWaitTime interface{}
+	var LastEventID interface{}
+	var LastEventDatetime interface{}
+	var CreatedAt interface{}
+	var UpdatedAt interface{}
+	var SharingStatus interface{}
+
+	sql := ""
+	for rows.Next() {
+		err := rows.Scan(
+			&Id,
+			&RoomID,
+			&Name,
+			&Kana,
+			&Romaji,
+			&BlockID,
+			&SlackID,
+			&Status,
+			&CurrentCount,
+			&TotalCount,
+			&TotalWaitTime,
+			&LastEventID,
+			&LastEventDatetime,
+			&CreatedAt,
+			&UpdatedAt,
+			&SharingStatus,
+		)
+		if err != nil {
+			return err.Error()
+		}
+		query := fmt.Sprintf(`
+			UPDATE ryosei
+				SET
+					uid = '%s',
+					room_name = '%s',
+					ryosei_name = '%s',
+					ryosei_name_kana = '%s',
+					ryosei_name_alphabet = '%s',
+					block_id=%d,
+					slack_id = '%s',
+					status=%d,
+					parcel_current_count=%d,
+					parcels_total_count=%d,
+					parcels_total_waittime=%d,
+					last_event_id = '%s',
+					last_event_datetime = '%s'
+					created_at = '%s',
+					updated_at = %v,
+					sharing_status=%d
+				WHERE
+					uid='%s'
+			;`,
+			Id,
+			RoomID,
+			Name,
+			nullStringToJsonFormat(Kana),
+			nullStringToJsonFormat(Romaji),
+			BlockID,
+			nullStringToJsonFormat(SlackID),
+			Status,
+			CurrentCount,
+			TotalCount,
+			TotalWaitTime,
+			nullStringToJsonFormat(LastEventID),
+			nullTimeToJsonFormat(LastEventDatetime),
+			CreatedAt.(time.Time).Format("2006-01-02 15:04:05"),
+			UpdatedAt,
+			SharingStatus,
+			Id,
+		)
+		sql += query
+	}
+	return sql
 }
 
 // [Deprecated] Make a long sql insert from data in DB
@@ -285,8 +530,8 @@ func GetRyoseiSeedingSql(db *sqlx.DB) (string, error) {
 			id,
 			roomID,
 			name,
-			kana,
-			romaji,
+			nullStringToJsonFormat(kana),
+			nullStringToJsonFormat(romaji),
 			blockID,
 			nullStringToJsonFormat(slackID),
 			status,

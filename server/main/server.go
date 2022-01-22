@@ -34,8 +34,8 @@ func main() {
 
 	// Register event handlers
 	mux.Handle("/ryosei/", routes.ObjectHandler(env, models.Ryosei{}))
-	mux.Handle("/parcel/", routes.ObjectHandler(env, models.Parcel{}))
-	mux.Handle("/parcelEvent/", routes.ObjectHandler(env, models.ParcelEvent{}))
+	mux.Handle("/parcels/", routes.ObjectHandler(env, models.Parcel{}))
+	mux.Handle("/parcel_event/", routes.ObjectHandler(env, models.ParcelEvent{}))
 	mux.Handle("/initRyosei", routes.InitRyoseiHandler(env))
 
 	// Start the Server

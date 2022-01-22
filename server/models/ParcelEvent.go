@@ -41,10 +41,10 @@ func setParcelEvent(parcelEvent *ParcelEvent, record *map[string]interface{}) er
 	parcelEvent.Id = (*record)["uid"].(string)
 	parcelEvent.CreatedAt = (*record)["created_at"].(string)
 	parcelEvent.EventType = floatToInt((*record)["event_type"].(float64))
-	parcelEvent.ParcelUid = (*record)["parcel_uid"].(string)
-	parcelEvent.RyoseiUid = (*record)["ryosei_uid"].(string)
-	parcelEvent.RoomID = (*record)["room_name"].(string)
-	parcelEvent.Name = (*record)["ryosei_name"].(string)
+	parcelEvent.ParcelUid = toNullString((*record)["parcel_uid"].(string))
+	parcelEvent.RyoseiUid = toNullString((*record)["ryosei_uid"].(string))
+	parcelEvent.RoomID = toNullString((*record)["room_name"].(string))
+	parcelEvent.Name = toNullString((*record)["ryosei_name"].(string))
 	parcelEvent.TargetID = toNullString((*record)["target_event_uid"])
 	parcelEvent.Note = toNullString((*record)["note"])
 	parcelEvent.IsAfterPeriodicCheck = floatToInt((*record)["is_after_fixed_time"].(float64))
@@ -56,20 +56,19 @@ func setParcelEvent(parcelEvent *ParcelEvent, record *map[string]interface{}) er
 }
 
 type ParcelEvent struct {
-	ObjectType         ObjectType
-	Id                 string         `json:"uid" db:"uid"`
-	CreatedAt          string         `json:"created_at" db:"created_at"`
-	EventType          int            `json:"event_type" db:"event_type"`
-	ParcelUid          string         `json:"parcel_uid" db:"parcels_uid"`
-	RyoseiUid          string         `json:"ryosei_uid" db:"ryosei_uid"`
-	RoomID             string         `json:"room_name" db:"room_name"`
-	Name               string         `json:"ryosei_name" db:"ryosei_name"`
-	TargetID           sql.NullString `json:"target_event_uid" db:"target_event_uid"`
-	Note               sql.NullString `json:"note" db:"note"`
+	Id                   string         `json:"uid" db:"uid"`
+	CreatedAt            string         `json:"created_at" db:"created_at"`
+	EventType            int            `json:"event_type" db:"event_type"`
+	ParcelUid            sql.NullString `json:"parcel_uid" db:"parcels_uid"`
+	RyoseiUid            sql.NullString `json:"ryosei_uid" db:"ryosei_uid"`
+	RoomID               sql.NullString `json:"room_name" db:"room_name"`
+	Name                 sql.NullString `json:"ryosei_name" db:"ryosei_name"`
+	TargetID             sql.NullString `json:"target_event_uid" db:"target_event_uid"`
+	Note                 sql.NullString `json:"note" db:"note"`
 	IsAfterPeriodicCheck int            `json:"is_after_fixed_time" db:"is_after_fixed_time"`
-	IsFinished         int            `json:"is_finished" db:"is_finished"`
-	IsDeleted          int            `json:"is_deleted" db:"is_deleted"`
-	SharingStatus      int            `json:"sharing_status" db:"sharing_status"`
+	IsFinished           int            `json:"is_finished" db:"is_finished"`
+	IsDeleted            int            `json:"is_deleted" db:"is_deleted"`
+	SharingStatus        int            `json:"sharing_status" db:"sharing_status"`
 }
 
 /*
@@ -175,7 +174,7 @@ INSERT INTO parcel_event(
 	Insert new parcelEvent into DB
 */
 func InsertParcelEvents(db *sqlx.DB, events []*ParcelEvent) error {
-	
+
 	var err error
 
 	for _, event := range events {
@@ -262,15 +261,15 @@ func getParcelEventSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 				is_deleted,
 				sharing_status
 			) VALUES (
-				'%s','%s',%d,'%s','%s','%s','%s',%v,%v,%d,%d,%d,%d
+				'%s','%s',%d,%v,%v,%v,%v,%v,%v,%d,%d,%d,%d
 		);`,
 			id,
 			createdAt.(time.Time).Format("2006-01-02 15:04:05"),
 			eventType,
-			parcelUid,
-			ryoseiUid,
-			roomId,
-			name,
+			nullStringToJsonFormat(parcelUid),
+			nullStringToJsonFormat(ryoseiUid),
+			nullStringToJsonFormat(roomId),
+			nullStringToJsonFormat(name),
 			nullStringToJsonFormat(targetId),
 			nullStringToJsonFormat(note),
 			boolToInt(isAfterPeriodicCheck),

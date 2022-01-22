@@ -13,7 +13,7 @@ import (
 	Implement ObjectType interface
 */
 func (parcel Parcel) GetName() string {
-	return "parcel"
+	return "parcels"
 }
 
 /*
@@ -382,18 +382,18 @@ func getParcelCountByUid(db *sqlx.DB, uid string) (int, error) {
 	Return SQL with sharing status 20 to the tablet
 */
 func GetUnsyncedParcelsAsSqlInsert(db *sqlx.DB) (*string, error) {
-	rows, err := db.Query("SELECT * FROM parcels WHERE sharing_status = 20")
+	rows, err := db.Query("SELECT TOP(50) * FROM parcels WHERE sharing_status = 20")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	sql := getSqlInsert(db, rows)
+	sql := getSqlParcelInsert(db, rows)
 
 	return &sql, nil
 }
 
-func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
+func getSqlParcelInsert(db *sqlx.DB, rows *sql.Rows) string {
 	var id interface{}
 	var ownerID interface{}
 	var ownerRoomID interface{}
@@ -531,12 +531,12 @@ func GetUnsyncedParcelsAsSqlUpdate(db *sqlx.DB) (*string, error) {
 	}
 	defer rows.Close()
 
-	sql := getSqlUpdate(db, rows)
+	sql := getSqlParcelsUpdate(db, rows)
 
 	return &sql, nil
 }
 
-func getSqlUpdate(db *sqlx.DB, rows *sql.Rows) string {
+func getSqlParcelsUpdate(db *sqlx.DB, rows *sql.Rows) string {
 	var id interface{}
 	var ownerID interface{}
 	var ownerRoomID interface{}
