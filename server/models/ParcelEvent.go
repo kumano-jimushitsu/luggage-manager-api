@@ -13,7 +13,7 @@ import (
 	Implement ObjectType interface
 */
 func (parcelEvent ParcelEvent) GetName() string {
-	return "parcelEvent"
+	return "parcel_event"
 }
 
 /*
@@ -41,10 +41,10 @@ func setParcelEvent(parcelEvent *ParcelEvent, record *map[string]interface{}) er
 	parcelEvent.Id = (*record)["uid"].(string)
 	parcelEvent.CreatedAt = (*record)["created_at"].(string)
 	parcelEvent.EventType = floatToInt((*record)["event_type"].(float64))
-	parcelEvent.ParcelUid = toNullString((*record)["parcel_uid"].(string))
-	parcelEvent.RyoseiUid = toNullString((*record)["ryosei_uid"].(string))
-	parcelEvent.RoomID = toNullString((*record)["room_name"].(string))
-	parcelEvent.Name = toNullString((*record)["ryosei_name"].(string))
+	parcelEvent.ParcelUid = toNullString((*record)["parcel_uid"])
+	parcelEvent.RyoseiUid = toNullString((*record)["ryosei_uid"])
+	parcelEvent.RoomID = toNullString((*record)["room_name"])
+	parcelEvent.Name = toNullString((*record)["ryosei_name"])
 	parcelEvent.TargetID = toNullString((*record)["target_event_uid"])
 	parcelEvent.Note = toNullString((*record)["note"])
 	parcelEvent.IsAfterPeriodicCheck = floatToInt((*record)["is_after_fixed_time"].(float64))
@@ -59,7 +59,7 @@ type ParcelEvent struct {
 	Id                   string         `json:"uid" db:"uid"`
 	CreatedAt            string         `json:"created_at" db:"created_at"`
 	EventType            int            `json:"event_type" db:"event_type"`
-	ParcelUid            sql.NullString `json:"parcel_uid" db:"parcels_uid"`
+	ParcelUid            sql.NullString `json:"parcel_uid" db:"parcel_uid"`
 	RyoseiUid            sql.NullString `json:"ryosei_uid" db:"ryosei_uid"`
 	RoomID               sql.NullString `json:"room_name" db:"room_name"`
 	Name                 sql.NullString `json:"ryosei_name" db:"ryosei_name"`

@@ -59,6 +59,7 @@ func showAllObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectT
 
 func createObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 	r.ParseForm()
+	fmt.Print("received insert data")
 	raw_json := r.Form[""][0]
 	if raw_json != "" {
 		objects, err := models.ParseJsonToObjects(raw_json, objectType)
