@@ -140,7 +140,43 @@ func getParcelEventsFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*ParcelEvent, er
 }
 
 var parcelEventInsert string = `
-INSERT INTO parcel_event(
+merge into parcel_event as old
+using
+(select
+	:uid as uid,
+	:created_at as created_at,
+	:event_type as event_type,
+	:parcel_uid as parcel_uid,
+	:ryosei_uid as ryosei_uid,
+	:room_name as room_name,
+	:ryosei_name as ryosei_name,
+	:target_event_uid as target_event_uid,
+	:note as note,
+	:is_after_fixed_time as is_after_fixed_time,
+	:is_finished as is_finished,
+	:is_deleted as is_deleted,
+	:sharing_status as sharing_status
+) as new
+on(
+ old.uid=new.uid
+)
+when matched then
+ update set
+	uid = new.uid,
+	created_at = new.created_at,
+	event_type = new.event_type,
+	parcel_uid = new.parcel_uid,
+	ryosei_uid = new.ryosei_uid,
+	room_name = new.room_name,
+	ryosei_name = new.ryosei_name,
+	target_event_uid = new.target_event_uid,
+	note = new.note,
+	is_after_fixed_time = new.is_after_fixed_time,
+	is_finished = new.is_finished,
+	is_deleted = new.is_deleted,
+	sharing_status = new.sharing_status
+when not matched then
+ insert(
 	uid,
 	created_at,
 	event_type,
@@ -154,21 +190,23 @@ INSERT INTO parcel_event(
 	is_finished,
 	is_deleted,
 	sharing_status
-) VALUES (
-	:uid,
-	:created_at,
-	:event_type,
-	:parcel_uid,
-	:ryosei_uid,
-	:room_name,
-	:ryosei_name,
-	:target_event_uid,
-	:note,
-	:is_after_fixed_time,
-	:is_finished,
-	:is_deleted,
-	:sharing_status
-)`
+)
+ values(
+	new.uid,
+	new.created_at,
+	new.event_type,
+	new.parcel_uid,
+	new.ryosei_uid,
+	new.room_name,
+	new.ryosei_name,
+	new.target_event_uid,
+	new.note,
+	new.is_after_fixed_time,
+	new.is_finished,
+	new.is_deleted,
+	new.sharing_status
+);
+`
 
 /*
 	Insert new parcelEvent into DB
@@ -246,7 +284,7 @@ func getParcelEventSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 		}
 
 		query := fmt.Sprintf(
-			`INSERT INTO parcel_event(
+			`REPLACE INTO parcel_event(
 				uid,
 				created_at,
 				event_type,

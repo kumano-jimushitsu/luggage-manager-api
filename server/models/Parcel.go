@@ -65,7 +65,7 @@ func setParcel(parcel *Parcel, record *map[string]interface{}) error {
 	parcel.Description = toNullString((*record)["note"])
 	parcel.IsDeleted = floatToInt((*record)["is_deleted"].(float64))
 	parcel.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
-
+	//parcel.SharingTime = toNullString((*record)["sharing_status"])
 	return nil
 }
 
@@ -96,6 +96,7 @@ type Parcel struct {
 	Description             sql.NullString `json:"note" db:"note"`
 	IsDeleted               int            `json:"is_deleted" db:"is_deleted"`
 	SharingStatus           int            `json:"sharing_status" db:"sharing_status"`
+	//SharingTime             sql.NullString `json:"sharing_time" db:"sharing_time"`
 }
 
 /*
@@ -184,6 +185,128 @@ func getParcelsFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*Parcel, error) {
 }
 
 var parcelInsert string = `
+merge into parcels as old
+using
+(select
+	:uid as uid,
+	:owner_uid as owner_uid,
+	:owner_room_name as owner_room_name,
+	:owner_ryosei_name as owner_ryosei_name,
+	:register_datetime as register_datetime,
+	:register_staff_uid as register_staff_uid,
+	:register_staff_room_name as register_staff_room_name,
+	:register_staff_ryosei_name as register_staff_ryosei_name,
+	:placement as placement,
+	:fragile as fragile,
+	:is_released as is_released,
+	:release_agent_uid as release_agent_uid,
+	:release_datetime as release_datetime,
+	:release_staff_uid as release_staff_uid,
+	:release_staff_room_name as release_staff_room_name,
+	:release_staff_ryosei_name as release_staff_ryosei_name,
+	:checked_count as checked_count,
+	:is_lost as is_lost,
+	:lost_datetime as lost_datetime,
+	:is_returned as is_returned,
+	:returned_datetime as returned_datetime,
+	:is_operation_error as is_operation_error,
+	:operation_error_type as operation_error_type,
+	:note as note,
+	:is_deleted as is_deleted,
+	:sharing_status as sharing_status
+) as new
+on(
+	old.uid=new.uid
+)
+when matched then
+update set
+ 	uid = new.uid,
+ 	owner_uid = new.owner_uid,
+ 	owner_room_name = new.owner_room_name,
+ 	owner_ryosei_name = new.owner_ryosei_name,
+ 	register_datetime = new.register_datetime,
+ 	register_staff_uid = new.register_staff_uid,
+ 	register_staff_room_name = new.register_staff_room_name,
+ 	register_staff_ryosei_name = new.register_staff_ryosei_name,
+ 	placement = new.placement,
+ 	fragile = new.fragile,
+ 	is_released = new.is_released,
+ 	release_agent_uid = new.release_agent_uid,
+ 	release_datetime = new.release_datetime,
+ 	release_staff_uid = new.release_staff_uid,
+ 	release_staff_room_name = new.release_staff_room_name,
+ 	release_staff_ryosei_name = new.release_staff_ryosei_name,
+ 	checked_count = new.checked_count,
+ 	is_lost = new.is_lost,
+ 	lost_datetime = new.lost_datetime,
+ 	is_returned = new.is_returned,
+ 	returned_datetime = new.returned_datetime,
+ 	is_operation_error = new.is_operation_error,
+ 	operation_error_type = new.operation_error_type,
+ 	note = new.note,
+ 	is_deleted = new.is_deleted,
+ 	sharing_status = new.sharing_status
+when not matched then
+ insert(
+	uid,
+	owner_uid,
+	owner_room_name,
+	owner_ryosei_name,
+	register_datetime,
+	register_staff_uid,
+	register_staff_room_name,
+	register_staff_ryosei_name,
+	placement,
+	fragile,
+	is_released,
+	release_agent_uid,
+	release_datetime,
+	release_staff_uid,
+	release_staff_room_name,
+	release_staff_ryosei_name,
+	checked_count,
+	is_lost,
+	lost_datetime,
+	is_returned,
+	returned_datetime,
+	is_operation_error,
+	operation_error_type,
+	note,
+	is_deleted,
+	sharing_status
+ )
+ values(
+	new.uid,
+	new.owner_uid,
+	new.owner_room_name,
+	new.owner_ryosei_name,
+	new.register_datetime,
+	new.register_staff_uid,
+	new.register_staff_room_name,
+	new.register_staff_ryosei_name,
+	new.placement,
+	new.fragile,
+	new.is_released,
+	new.release_agent_uid,
+	new.release_datetime,
+	new.release_staff_uid,
+	new.release_staff_room_name,
+	new.release_staff_ryosei_name,
+	new.checked_count,
+	new.is_lost,
+	new.lost_datetime,
+	new.is_returned,
+	new.returned_datetime,
+	new.is_operation_error,
+	new.operation_error_type,
+	new.note,
+	new.is_deleted,
+	new.sharing_status
+ );
+`
+
+/*
+var parcelInsert string = `
 INSERT INTO parcels(
 	uid,
 	owner_uid,
@@ -239,7 +362,7 @@ INSERT INTO parcels(
 	:is_deleted,
 	:sharing_status
 )`
-
+*/
 /*
 	Insert new parcels into DB
 */
@@ -457,7 +580,7 @@ func getSqlParcelInsert(db *sqlx.DB, rows *sql.Rows) string {
 		}
 
 		query := fmt.Sprintf(
-			`INSERT INTO parcels(
+			`REPLACE INTO parcels(
 				uid,
 				owner_uid,
 				owner_room_name,

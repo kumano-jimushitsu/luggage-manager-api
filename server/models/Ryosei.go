@@ -131,6 +131,88 @@ func getRyoseisFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*Ryosei, error) {
 }
 
 var ryoseiInsert string = `
+merge into ryosei as old
+using
+(select
+	:uid as uid,
+	:room_name as room_name,
+	:ryosei_name as ryosei_name,
+	:ryosei_name_kana as ryosei_name_kana,
+	:ryosei_name_alphabet as ryosei_name_alphabet,
+	:block_id as block_id,
+	:slack_id as slack_id,
+	:status as status,
+	:parcels_current_count as parcels_current_count,
+	:parcels_total_count as parcels_total_count,
+	:parcels_total_waittime as parcels_total_waittime,
+	:last_event_id as last_event_id,
+	:last_event_datetime as last_event_datetime,
+	:created_at as created_at,
+	:updated_at as updated_at,
+	:sharing_status as sharing_status
+) as new
+on(
+ old.uid=new.uid
+)
+when matched then
+	update set
+		uid=new.uid,
+		room_name=new.room_name,
+		ryosei_name=new.ryosei_name,
+		ryosei_name_kana=new.ryosei_name_kana,
+		ryosei_name_alphabet=new.ryosei_name_alphabet,
+		block_id=new.block_id,
+		slack_id=new.slack_id,
+		status=new.status,
+		parcels_current_count=new.parcels_current_count,
+		parcels_total_count=new.parcels_total_count,
+		parcels_total_waittime=new.parcels_total_waittime,
+		last_event_id=new.last_event_id,
+		last_event_datetime=new.last_event_datetime,
+		created_at=new.created_at,
+		updated_at=new.updated_at,
+		sharing_status=new.sharing_status
+when not matched then
+ insert(
+	uid,
+	room_name,
+	ryosei_name,
+	ryosei_name_kana,
+	ryosei_name_alphabet,
+	block_id,
+	slack_id,
+	status,
+	parcels_current_count,
+	parcels_total_count,
+	parcels_total_waittime,
+	last_event_id,
+	last_event_datetime,
+	created_at,
+	updated_at,
+	sharing_status
+)
+ values(
+	new.uid,
+	new.room_name,
+	new.ryosei_name,
+	new.ryosei_name_kana,
+	new.ryosei_name_alphabet,
+	new.block_id,
+	new.slack_id,
+	new.status,
+	new.parcels_current_count,
+	new.parcels_total_count,
+	new.parcels_total_waittime,
+	new.last_event_id,
+	new.last_event_datetime,
+	new.created_at,
+	new.updated_at,
+	new.sharing_status
+ );
+ `
+
+/*
+var ryoseiInsert string = `
 INSERT INTO ryosei(
 	uid,
 	room_name,
@@ -166,7 +248,7 @@ INSERT INTO ryosei(
 	:updated_at,
 	:sharing_status
 )`
-
+*/
 func InsertRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 
 	var err error
@@ -263,7 +345,30 @@ func UpdateRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 }
 
 func GetUnsyncedRyoseisAsSqlInsert(db *sqlx.DB) (*string, error) {
-	rows, err := db.Query("SELECT TOP (50) * FROM ryosei WHERE sharing_status = 20")
+	var selectsql string
+	selectsql = `SELECT TOP (50) 
+	uid,
+	room_name,
+	ryosei_name,
+	ryosei_name_kana,
+	ryosei_name_alphabet,
+	block_id,
+	slack_id,
+	status,
+	parcels_current_count,
+	parcels_total_count,
+	parcels_total_waittime,
+	last_event_id,
+	last_event_datetime,
+	format(created_at,'yyyy-MM-dd HH:mm:ss') as created_at,
+	format(updated_at,'yyyy-MM-dd HH:mm:ss') as updated_at,
+	sharing_status
+	FROM ryosei WHERE sharing_status = 20`
+	//取得時にフォーマットしてしまっているが、go側で以下のようにフォーマットすることもできる
+	//(ParcelEvent.goを参照)
+	//createdAt.(time.Time).Format("2006-01-02 15:04:05"),
+	//直すのが面倒だし、何かの時に使えるかもしれないので残しておく
+	rows, err := db.Query(selectsql)
 	if err != nil {
 		return nil, err
 	}
@@ -314,27 +419,65 @@ func getSqlRyoseiInsert(db *sqlx.DB, rows *sql.Rows) string {
 		if err != nil {
 			return err.Error()
 		}
+		/*
+			query := fmt.Sprintf(
+				`REPLACE ryosei
+				SET
+					uid='%s',
+					room_name='%s',
+					ryosei_name='%s',
+					ryosei_name_kana=%v,
+					ryosei_name_alphabet=%v,
+					block_id=%d,
+					slack_id=%v,
+					status=%v,
+					parcel_current_count=%d,
+					parcels_total_count=%d,
+					parcels_total_waittime='%s',
+					last_event_id=%v,
+					last_event_datetime=%v,
+					created_at='%s',
+					updated_at=%v,
+					sharing_status=%v;`,
+				Id,
+				RoomID,
+				Name,
+				nullStringToJsonFormat(Kana),
+				nullStringToJsonFormat(Romaji),
+				BlockID,
+				nullStringToJsonFormat(SlackID),
+				Status,
+				CurrentCount,
+				TotalCount,
+				TotalWaitTime,
+				nullStringToJsonFormat(LastEventID),
+				nullStringToJsonFormat(LastEventDatetime),
+				CreatedAt,
+				nullStringToJsonFormat(UpdatedAt),
+				SharingStatus,
+			)
+		*/
 		query := fmt.Sprintf(
-			`INSRT INTO ryosei(
-				uid,
-				room_name,
-				ryosei_name,
-				ryosei_name_kana,
-				ryosei_name_alphabet,
-				block_id,
-				slack_id,
-				status,
-				parcel_current_count,
-				parcels_total_count,
-				parcels_total_waittime,
-				last_event_id,
-				last_event_datetime,
-				created_at,
-				updated_at,
-				sharing_status
-			)VALUES(
-				'%s','%s','%s',%v,'%s',%d,'%s',%d,%d,%d,'%s','%s','%s','%s','%s',%d
-			);`,
+			`REPLACE INTO ryosei(
+					uid,
+					room_name,
+					ryosei_name,
+					ryosei_name_kana,
+					ryosei_name_alphabet,
+					block_id,
+					slack_id,
+					status,
+					parcels_current_count,
+					parcels_total_count,
+					parcels_total_waittime,
+					last_event_id,
+					last_event_datetime,
+					created_at,
+					updated_at,
+					sharing_status
+				)VALUES(
+					'%s','%s','%s',%v,%v,%d,%v,%d,%d,%d,'%s',%v,%v,'%s',%v,%d
+				);`,
 			Id,
 			RoomID,
 			Name,
