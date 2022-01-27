@@ -49,7 +49,7 @@ func setRyosei(ryosei *Ryosei, record *map[string]interface{}) error {
 	ryosei.CreatedAt = (*record)["created_at"].(string)
 	ryosei.UpdatedAt = toNullString((*record)["updated_at"])
 	ryosei.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
-
+	ryosei.SharingTime = toNullString((*record)["sharing_time"])
 	return nil
 }
 
@@ -70,6 +70,7 @@ type Ryosei struct {
 	CreatedAt         string         `json:"created_at" db:"created_at"`
 	UpdatedAt         sql.NullString `json:"updated_at" db:"updated_at"`
 	SharingStatus     int            `json:"sharing_status" db:"sharing_status"`
+	SharingTime       sql.NullString `json:"sharing_time" db:"sharing_time"`
 }
 
 func ParseJsonToRyoseis(raw_json string) ([]*Ryosei, error) {
@@ -118,6 +119,7 @@ func getRyoseisFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*Ryosei, error) {
 			&ryosei.CreatedAt,
 			&ryosei.UpdatedAt,
 			&ryosei.SharingStatus,
+			&ryosei.SharingTime,
 		)
 		if err != nil {
 			return nil, err
@@ -149,7 +151,8 @@ using
 	:last_event_datetime as last_event_datetime,
 	:created_at as created_at,
 	:updated_at as updated_at,
-	:sharing_status as sharing_status
+	:sharing_status as sharing_status,
+	:sharing_time as sharing_time
 ) as new
 on(
  old.uid=new.uid
@@ -171,7 +174,8 @@ when matched then
 		last_event_datetime=new.last_event_datetime,
 		created_at=new.created_at,
 		updated_at=new.updated_at,
-		sharing_status=new.sharing_status
+		sharing_status = 30,
+	    sharing_time = getdate()
 when not matched then
  insert(
 	uid,
@@ -189,7 +193,8 @@ when not matched then
 	last_event_datetime,
 	created_at,
 	updated_at,
-	sharing_status
+	sharing_status,
+	sharing_time
 )
  values(
 	new.uid,
@@ -207,7 +212,8 @@ when not matched then
 	new.last_event_datetime,
 	new.created_at,
 	new.updated_at,
-	new.sharing_status
+	30,
+	getdate()
  );
  `
 
@@ -258,8 +264,10 @@ func InsertRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 		if err != nil {
 			return err
 		}
+		//↓必要なさそうな気がする
 		update := `UPDATE ryosei SET sharing_status = 30 WHERE uid = '` + ryosei.Id + `' AND sharing_status = 10`
 		_, err = db.Exec(update)
+		// ↑
 		if err != nil {
 			return err
 		}
@@ -304,7 +312,7 @@ func UpdateRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 				last_event_id = '%s',
 				last_event_datetime = %v,
 				created_at = '%s',
-				updated_at = '%v',
+				updated_at = %v,
 				sharing_status = %d,
 			where 
 				uid = '%s'
@@ -346,7 +354,7 @@ func UpdateRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 
 func GetUnsyncedRyoseisAsSqlInsert(db *sqlx.DB) (*string, error) {
 	var selectsql string
-	selectsql = `SELECT TOP (50) 
+	selectsql = `SELECT TOP (5) 
 	uid,
 	room_name,
 	ryosei_name,
@@ -359,10 +367,11 @@ func GetUnsyncedRyoseisAsSqlInsert(db *sqlx.DB) (*string, error) {
 	parcels_total_count,
 	parcels_total_waittime,
 	last_event_id,
-	last_event_datetime,
+	format(last_event_datetime,'yyyy-MM-dd HH:mm:ss') as last_event_datetime,
 	format(created_at,'yyyy-MM-dd HH:mm:ss') as created_at,
 	format(updated_at,'yyyy-MM-dd HH:mm:ss') as updated_at,
-	sharing_status
+	sharing_status,
+	FORMAT(getdate(),'yyyy/MM/dd HH:mm:ss') as sharing_time
 	FROM ryosei WHERE sharing_status = 20`
 	//取得時にフォーマットしてしまっているが、go側で以下のようにフォーマットすることもできる
 	//(ParcelEvent.goを参照)
@@ -396,6 +405,8 @@ func getSqlRyoseiInsert(db *sqlx.DB, rows *sql.Rows) string {
 	var CreatedAt interface{}
 	var UpdatedAt interface{}
 	var SharingStatus interface{}
+	var SharingTime interface{}
+
 	sql := ""
 	for rows.Next() {
 		err := rows.Scan(
@@ -415,6 +426,7 @@ func getSqlRyoseiInsert(db *sqlx.DB, rows *sql.Rows) string {
 			&CreatedAt,
 			&UpdatedAt,
 			&SharingStatus,
+			&SharingTime,
 		)
 		if err != nil {
 			return err.Error()
@@ -474,9 +486,10 @@ func getSqlRyoseiInsert(db *sqlx.DB, rows *sql.Rows) string {
 					last_event_datetime,
 					created_at,
 					updated_at,
-					sharing_status
+					sharing_status,
+					sharing_time
 				)VALUES(
-					'%s','%s','%s',%v,%v,%d,%v,%d,%d,%d,'%s',%v,%v,'%s',%v,%d
+					'%s','%s','%s',%v,%v,%d,%v,%d,%d,%d,'%s',%v,%v,'%s',%v,%d,%v
 				);`,
 			Id,
 			RoomID,
@@ -494,6 +507,7 @@ func getSqlRyoseiInsert(db *sqlx.DB, rows *sql.Rows) string {
 			CreatedAt,
 			nullStringToJsonFormat(UpdatedAt),
 			SharingStatus,
+			nullStringToJsonFormat(SharingTime),
 		)
 		sql += query
 	}

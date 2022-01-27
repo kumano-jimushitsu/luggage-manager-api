@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -51,7 +50,7 @@ func setParcelEvent(parcelEvent *ParcelEvent, record *map[string]interface{}) er
 	parcelEvent.IsFinished = floatToInt((*record)["is_finished"].(float64))
 	parcelEvent.IsDeleted = floatToInt((*record)["is_deleted"].(float64))
 	parcelEvent.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
-
+	parcelEvent.SharingTime = toNullString((*record)["sharing_time"])
 	return nil
 }
 
@@ -69,6 +68,7 @@ type ParcelEvent struct {
 	IsFinished           int            `json:"is_finished" db:"is_finished"`
 	IsDeleted            int            `json:"is_deleted" db:"is_deleted"`
 	SharingStatus        int            `json:"sharing_status" db:"sharing_status"`
+	SharingTime          sql.NullString `json:"sharing_time" db:"sharing_time"`
 }
 
 /*
@@ -122,6 +122,7 @@ func getParcelEventsFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*ParcelEvent, er
 			&isFinished,
 			&isDeleted,
 			&event.SharingStatus,
+			&event.SharingTime,
 		)
 		if err != nil {
 			return nil, err
@@ -155,7 +156,8 @@ using
 	:is_after_fixed_time as is_after_fixed_time,
 	:is_finished as is_finished,
 	:is_deleted as is_deleted,
-	:sharing_status as sharing_status
+	:sharing_status as sharing_status,
+	:sharing_time as sharing_time
 ) as new
 on(
  old.uid=new.uid
@@ -174,7 +176,8 @@ when matched then
 	is_after_fixed_time = new.is_after_fixed_time,
 	is_finished = new.is_finished,
 	is_deleted = new.is_deleted,
-	sharing_status = new.sharing_status
+	sharing_status = 30,
+	sharing_time = getdate()
 when not matched then
  insert(
 	uid,
@@ -189,7 +192,8 @@ when not matched then
 	is_after_fixed_time,
 	is_finished,
 	is_deleted,
-	sharing_status
+	sharing_status,
+	sharing_time
 )
  values(
 	new.uid,
@@ -204,7 +208,8 @@ when not matched then
 	new.is_after_fixed_time,
 	new.is_finished,
 	new.is_deleted,
-	new.sharing_status
+	30,
+	getdate()
 );
 `
 
@@ -234,7 +239,24 @@ func InsertParcelEvents(db *sqlx.DB, events []*ParcelEvent) error {
 	Return SQL with sharing status 20 to the tablet
 */
 func GetUnsyncedParcelEventsAsSqlInsert(db *sqlx.DB) (*string, error) {
-	rows, err := db.Query("SELECT * FROM parcel_event WHERE sharing_status = 20")
+	var selectsql string
+	selectsql = `SELECT TOP (5)
+	uid,
+	format(created_at,'yyyy-MM-dd HH:mm:ss') as created_at,
+	event_type,
+	parcel_uid,
+	ryosei_uid,
+	room_name,
+	ryosei_name,
+	target_event_uid,
+	note,
+	is_after_fixed_time,
+	is_finished,
+	is_deleted,
+	sharing_status,
+	FORMAT(getdate(),'yyyy/MM/dd HH:mm:ss') as sharing_time
+	FROM parcel_event Where sharing_status=20`
+	rows, err := db.Query(selectsql)
 	if err != nil {
 		return nil, err
 	}
@@ -259,6 +281,7 @@ func getParcelEventSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 	var isFinished interface{}
 	var isDeleted interface{}
 	var sharingStatus interface{}
+	var sharingTime interface{}
 
 	sql := ""
 
@@ -277,6 +300,7 @@ func getParcelEventSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 			&isFinished,
 			&isDeleted,
 			&sharingStatus,
+			&sharingTime,
 		)
 
 		if err != nil {
@@ -297,12 +321,13 @@ func getParcelEventSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 				is_after_fixed_time,
 				is_finished,
 				is_deleted,
-				sharing_status
+				sharing_status,
+				sharing_time
 			) VALUES (
-				'%s','%s',%d,%v,%v,%v,%v,%v,%v,%d,%d,%d,%d
+				'%s','%s',%d,%v,%v,%v,%v,%v,%v,%d,%d,%d,%d,%v
 		);`,
 			id,
-			createdAt.(time.Time).Format("2006-01-02 15:04:05"),
+			createdAt,
 			eventType,
 			nullStringToJsonFormat(parcelUid),
 			nullStringToJsonFormat(ryoseiUid),
@@ -314,6 +339,7 @@ func getParcelEventSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 			boolToInt(isFinished),
 			boolToInt(isDeleted),
 			sharingStatus,
+			nullStringToJsonFormat(sharingTime),
 		)
 		sql += query
 	}

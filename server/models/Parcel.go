@@ -65,7 +65,7 @@ func setParcel(parcel *Parcel, record *map[string]interface{}) error {
 	parcel.Description = toNullString((*record)["note"])
 	parcel.IsDeleted = floatToInt((*record)["is_deleted"].(float64))
 	parcel.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
-	//parcel.SharingTime = toNullString((*record)["sharing_status"])
+	parcel.SharingTime = toNullString((*record)["sharing_time"])
 	return nil
 }
 
@@ -96,7 +96,7 @@ type Parcel struct {
 	Description             sql.NullString `json:"note" db:"note"`
 	IsDeleted               int            `json:"is_deleted" db:"is_deleted"`
 	SharingStatus           int            `json:"sharing_status" db:"sharing_status"`
-	//SharingTime             sql.NullString `json:"sharing_time" db:"sharing_time"`
+	SharingTime             sql.NullString `json:"sharing_time" db:"sharing_time"`
 }
 
 /*
@@ -166,6 +166,7 @@ func getParcelsFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*Parcel, error) {
 			&parcel.Description,
 			&isDeleted,
 			&parcel.SharingStatus,
+			&parcel.SharingTime,
 		)
 		if err != nil {
 			return nil, err
@@ -213,7 +214,8 @@ using
 	:operation_error_type as operation_error_type,
 	:note as note,
 	:is_deleted as is_deleted,
-	:sharing_status as sharing_status
+	:sharing_status as sharing_status,
+	:sharing_time as sharing_time
 ) as new
 on(
 	old.uid=new.uid
@@ -245,7 +247,8 @@ update set
  	operation_error_type = new.operation_error_type,
  	note = new.note,
  	is_deleted = new.is_deleted,
- 	sharing_status = new.sharing_status
+ 	sharing_status = 30,
+	sharing_time = getdate()
 when not matched then
  insert(
 	uid,
@@ -273,7 +276,8 @@ when not matched then
 	operation_error_type,
 	note,
 	is_deleted,
-	sharing_status
+	sharing_status,
+	sharing_time
  )
  values(
 	new.uid,
@@ -301,7 +305,8 @@ when not matched then
 	new.operation_error_type,
 	new.note,
 	new.is_deleted,
-	new.sharing_status
+	30,
+	getdate()
  );
 `
 
@@ -375,8 +380,10 @@ func InsertParcels(db *sqlx.DB, parcels []*Parcel) error {
 		if err != nil {
 			return err
 		}
+		//↓必要なさそうな気がする
 		update := `UPDATE parcels SET sharing_status = 30 WHERE uid = '` + parcel.Id + `' AND sharing_status = 10`
 		_, err = db.Exec(update)
+		//↑
 		if err != nil {
 			return err
 		}
@@ -388,6 +395,7 @@ func InsertParcels(db *sqlx.DB, parcels []*Parcel) error {
 /*
 	Update records in the table with the latest parcels
 */
+/*
 func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
 	for _, parcel := range parcels {
 
@@ -485,7 +493,7 @@ func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
 
 	return nil
 }
-
+*/
 func getParcelCountByUid(db *sqlx.DB, uid string) (int, error) {
 	var count int
 	query := fmt.Sprintf("SELECT * FROM parcels WHERE uid = '%s'", uid)
@@ -505,7 +513,39 @@ func getParcelCountByUid(db *sqlx.DB, uid string) (int, error) {
 	Return SQL with sharing status 20 to the tablet
 */
 func GetUnsyncedParcelsAsSqlInsert(db *sqlx.DB) (*string, error) {
-	rows, err := db.Query("SELECT TOP(50) * FROM parcels WHERE sharing_status = 20")
+	var selectsql string
+	selectsql = `
+	SELECT TOP(5)
+	uid,
+	owner_uid,
+	owner_room_name,
+	owner_ryosei_name,
+	register_datetime,
+	register_staff_uid,
+	register_staff_room_name,
+	register_staff_ryosei_name,
+	placement,
+	fragile,
+	is_released,
+	release_agent_uid,
+	release_datetime,
+	release_staff_uid,
+	release_staff_room_name,
+	release_staff_ryosei_name,
+	checked_count,
+	is_lost,
+	lost_datetime,
+	is_returned,
+	returned_datetime,
+	is_operation_error,
+	operation_error_type,
+	note,
+	is_deleted,
+	sharing_status,
+	FORMAT(getdate(),'yyyy/MM/dd HH:mm:ss') as sharing_time
+	 FROM parcels WHERE sharing_status = 20
+	`
+	rows, err := db.Query(selectsql)
 	if err != nil {
 		return nil, err
 	}
@@ -543,6 +583,7 @@ func getSqlParcelInsert(db *sqlx.DB, rows *sql.Rows) string {
 	var description interface{}
 	var isDeleted interface{}
 	var sharingStatus interface{}
+	var sharingTime interface{}
 
 	sql := ""
 	for rows.Next() {
@@ -573,6 +614,7 @@ func getSqlParcelInsert(db *sqlx.DB, rows *sql.Rows) string {
 			&description,
 			&isDeleted,
 			&sharingStatus,
+			&sharingTime,
 		)
 
 		if err != nil {
@@ -606,11 +648,12 @@ func getSqlParcelInsert(db *sqlx.DB, rows *sql.Rows) string {
 				operation_error_type,
 				note,
 				is_deleted,
-				sharing_status
+				sharing_status,
+				sharing_time
 			) VALUES(
 				'%s','%s','%s','%s','%s','%s','%s','%s',%d,%d,
 				%d,%v,%v,%v,%v,%v,%d,%d,%v,%d,
-				%v,%d,%v,%v,%d,%d
+				%v,%d,%v,%v,%d,%d,%v
 		);`,
 			id,
 			ownerID,
@@ -638,6 +681,7 @@ func getSqlParcelInsert(db *sqlx.DB, rows *sql.Rows) string {
 			nullStringToJsonFormat(description),
 			boolToInt(isDeleted),
 			sharingStatus,
+			nullStringToJsonFormat(sharingTime),
 		)
 		sql += query
 	}
@@ -647,6 +691,7 @@ func getSqlParcelInsert(db *sqlx.DB, rows *sql.Rows) string {
 /*
 	Return SQL with sharing status 20 and 21 to the tablet
 */
+/*
 func GetUnsyncedParcelsAsSqlUpdate(db *sqlx.DB) (*string, error) {
 	rows, err := db.Query("SELECT * FROM parcels WHERE sharing_status = 21")
 	if err != nil {
@@ -658,7 +703,8 @@ func GetUnsyncedParcelsAsSqlUpdate(db *sqlx.DB) (*string, error) {
 
 	return &sql, nil
 }
-
+*/
+/*
 func getSqlParcelsUpdate(db *sqlx.DB, rows *sql.Rows) string {
 	var id interface{}
 	var ownerID interface{}
@@ -786,3 +832,4 @@ func getSqlParcelsUpdate(db *sqlx.DB, rows *sql.Rows) string {
 	}
 	return sql
 }
+*/
