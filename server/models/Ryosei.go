@@ -276,6 +276,7 @@ func InsertRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 	return nil
 }
 
+/*
 func UpdateRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 	for _, ryosei := range ryoseis {
 
@@ -296,7 +297,7 @@ func UpdateRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 			}
 		} else {
 			sql = fmt.Sprintf(`
-			UPDATE ryosei	
+			UPDATE ryosei
 			SET
 				uid = '%s',
 				room_name = '%s',
@@ -314,7 +315,7 @@ func UpdateRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 				created_at = '%s',
 				updated_at = %v,
 				sharing_status = %d,
-			where 
+			where
 				uid = '%s'
 			`,
 				ryosei.Id,
@@ -351,7 +352,7 @@ func UpdateRyoseis(db *sqlx.DB, ryoseis []*Ryosei) error {
 
 	return nil
 }
-
+*/
 func GetUnsyncedRyoseisAsSqlInsert(db *sqlx.DB) (*string, error) {
 	var selectsql string
 	selectsql = `SELECT TOP (5) 
@@ -514,6 +515,7 @@ func getSqlRyoseiInsert(db *sqlx.DB, rows *sql.Rows) string {
 	return sql
 }
 
+/*
 func GetUnsyncedRyoseisAsSqlUpdate(db *sqlx.DB) (*string, error) {
 	rows, err := db.Query("SELECT * FROM ryosei WHERE sharing_status = 21")
 	if err != nil {
@@ -611,7 +613,7 @@ func getSqlRyoseiUpdate(db *sqlx.DB, rows *sql.Rows) string {
 	}
 	return sql
 }
-
+*/
 // [Deprecated] Make a long sql insert from data in DB
 func GetRyoseiSeedingSql(db *sqlx.DB) (string, error) {
 	rows, err := db.Query("SELECT * FROM ryosei")
