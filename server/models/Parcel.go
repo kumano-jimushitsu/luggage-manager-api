@@ -13,7 +13,7 @@ import (
 	Implement ObjectType interface
 */
 func (parcel Parcel) GetName() string {
-	return "parcel"
+	return "parcels"
 }
 
 /*
@@ -52,9 +52,9 @@ func setParcel(parcel *Parcel, record *map[string]interface{}) error {
 	parcel.IsReleased = floatToInt((*record)["is_released"].(float64))
 	parcel.ReleasedAgentID = toNullString((*record)["release_agent_uid"])
 	parcel.ReleasedAt = toNullString((*record)["release_datetime"])
-	parcel.ReleasedStaffID = toNullString((*record)["released_staff_uid"])
-	parcel.ReleasedStaffRoomID = toNullString((*record)["released_staff_room_name"])
-	parcel.ReleasedStaffName = toNullString((*record)["released_staff_ryosei_name"])
+	parcel.ReleasedStaffID = toNullString((*record)["release_staff_uid"])
+	parcel.ReleasedStaffRoomID = toNullString((*record)["release_staff_room_name"])
+	parcel.ReleasedStaffName = toNullString((*record)["release_staff_ryosei_name"])
 	parcel.CheckedCount = floatToInt((*record)["checked_count"].(float64))
 	parcel.IsLost = floatToInt((*record)["is_lost"].(float64))
 	parcel.LostAt = toNullString((*record)["lost_datetime"])
@@ -65,7 +65,7 @@ func setParcel(parcel *Parcel, record *map[string]interface{}) error {
 	parcel.Description = toNullString((*record)["note"])
 	parcel.IsDeleted = floatToInt((*record)["is_deleted"].(float64))
 	parcel.SharingStatus = floatToInt((*record)["sharing_status"].(float64))
-
+	parcel.SharingTime = toNullString((*record)["sharing_time"])
 	return nil
 }
 
@@ -96,6 +96,7 @@ type Parcel struct {
 	Description             sql.NullString `json:"note" db:"note"`
 	IsDeleted               int            `json:"is_deleted" db:"is_deleted"`
 	SharingStatus           int            `json:"sharing_status" db:"sharing_status"`
+	SharingTime             sql.NullString `json:"sharing_time" db:"sharing_time"`
 }
 
 /*
@@ -165,6 +166,7 @@ func getParcelsFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*Parcel, error) {
 			&parcel.Description,
 			&isDeleted,
 			&parcel.SharingStatus,
+			&parcel.SharingTime,
 		)
 		if err != nil {
 			return nil, err
@@ -183,6 +185,132 @@ func getParcelsFromSqlRows(db *sqlx.DB, rows *sql.Rows) ([]*Parcel, error) {
 	return parcels, nil
 }
 
+var parcelInsert string = `
+merge into parcels as old
+using
+(select
+	:uid as uid,
+	:owner_uid as owner_uid,
+	:owner_room_name as owner_room_name,
+	:owner_ryosei_name as owner_ryosei_name,
+	:register_datetime as register_datetime,
+	:register_staff_uid as register_staff_uid,
+	:register_staff_room_name as register_staff_room_name,
+	:register_staff_ryosei_name as register_staff_ryosei_name,
+	:placement as placement,
+	:fragile as fragile,
+	:is_released as is_released,
+	:release_agent_uid as release_agent_uid,
+	:release_datetime as release_datetime,
+	:release_staff_uid as release_staff_uid,
+	:release_staff_room_name as release_staff_room_name,
+	:release_staff_ryosei_name as release_staff_ryosei_name,
+	:checked_count as checked_count,
+	:is_lost as is_lost,
+	:lost_datetime as lost_datetime,
+	:is_returned as is_returned,
+	:returned_datetime as returned_datetime,
+	:is_operation_error as is_operation_error,
+	:operation_error_type as operation_error_type,
+	:note as note,
+	:is_deleted as is_deleted,
+	:sharing_status as sharing_status,
+	:sharing_time as sharing_time
+) as new
+on(
+	old.uid=new.uid
+)
+when matched then
+update set
+ 	uid = new.uid,
+ 	owner_uid = new.owner_uid,
+ 	owner_room_name = new.owner_room_name,
+ 	owner_ryosei_name = new.owner_ryosei_name,
+ 	register_datetime = new.register_datetime,
+ 	register_staff_uid = new.register_staff_uid,
+ 	register_staff_room_name = new.register_staff_room_name,
+ 	register_staff_ryosei_name = new.register_staff_ryosei_name,
+ 	placement = new.placement,
+ 	fragile = new.fragile,
+ 	is_released = new.is_released,
+ 	release_agent_uid = new.release_agent_uid,
+ 	release_datetime = new.release_datetime,
+ 	release_staff_uid = new.release_staff_uid,
+ 	release_staff_room_name = new.release_staff_room_name,
+ 	release_staff_ryosei_name = new.release_staff_ryosei_name,
+ 	checked_count = new.checked_count,
+ 	is_lost = new.is_lost,
+ 	lost_datetime = new.lost_datetime,
+ 	is_returned = new.is_returned,
+ 	returned_datetime = new.returned_datetime,
+ 	is_operation_error = new.is_operation_error,
+ 	operation_error_type = new.operation_error_type,
+ 	note = new.note,
+ 	is_deleted = new.is_deleted,
+ 	sharing_status = 30,
+	sharing_time = getdate()
+when not matched then
+ insert(
+	uid,
+	owner_uid,
+	owner_room_name,
+	owner_ryosei_name,
+	register_datetime,
+	register_staff_uid,
+	register_staff_room_name,
+	register_staff_ryosei_name,
+	placement,
+	fragile,
+	is_released,
+	release_agent_uid,
+	release_datetime,
+	release_staff_uid,
+	release_staff_room_name,
+	release_staff_ryosei_name,
+	checked_count,
+	is_lost,
+	lost_datetime,
+	is_returned,
+	returned_datetime,
+	is_operation_error,
+	operation_error_type,
+	note,
+	is_deleted,
+	sharing_status,
+	sharing_time
+ )
+ values(
+	new.uid,
+	new.owner_uid,
+	new.owner_room_name,
+	new.owner_ryosei_name,
+	new.register_datetime,
+	new.register_staff_uid,
+	new.register_staff_room_name,
+	new.register_staff_ryosei_name,
+	new.placement,
+	new.fragile,
+	new.is_released,
+	new.release_agent_uid,
+	new.release_datetime,
+	new.release_staff_uid,
+	new.release_staff_room_name,
+	new.release_staff_ryosei_name,
+	new.checked_count,
+	new.is_lost,
+	new.lost_datetime,
+	new.is_returned,
+	new.returned_datetime,
+	new.is_operation_error,
+	new.operation_error_type,
+	new.note,
+	new.is_deleted,
+	30,
+	getdate()
+ );
+`
+
+/*
 var parcelInsert string = `
 INSERT INTO parcels(
 	uid,
@@ -239,7 +367,7 @@ INSERT INTO parcels(
 	:is_deleted,
 	:sharing_status
 )`
-
+*/
 /*
 	Insert new parcels into DB
 */
@@ -252,8 +380,10 @@ func InsertParcels(db *sqlx.DB, parcels []*Parcel) error {
 		if err != nil {
 			return err
 		}
+		//↓必要なさそうな気がする
 		update := `UPDATE parcels SET sharing_status = 30 WHERE uid = '` + parcel.Id + `' AND sharing_status = 10`
 		_, err = db.Exec(update)
+		//↑
 		if err != nil {
 			return err
 		}
@@ -265,6 +395,7 @@ func InsertParcels(db *sqlx.DB, parcels []*Parcel) error {
 /*
 	Update records in the table with the latest parcels
 */
+/*
 func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
 	for _, parcel := range parcels {
 
@@ -362,7 +493,7 @@ func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
 
 	return nil
 }
-
+*/
 func getParcelCountByUid(db *sqlx.DB, uid string) (int, error) {
 	var count int
 	query := fmt.Sprintf("SELECT * FROM parcels WHERE uid = '%s'", uid)
@@ -382,18 +513,50 @@ func getParcelCountByUid(db *sqlx.DB, uid string) (int, error) {
 	Return SQL with sharing status 20 to the tablet
 */
 func GetUnsyncedParcelsAsSqlInsert(db *sqlx.DB) (*string, error) {
-	rows, err := db.Query("SELECT * FROM parcels WHERE sharing_status = 20")
+	var selectsql string
+	selectsql = `
+	SELECT TOP(5)
+	uid,
+	owner_uid,
+	owner_room_name,
+	owner_ryosei_name,
+	register_datetime,
+	register_staff_uid,
+	register_staff_room_name,
+	register_staff_ryosei_name,
+	placement,
+	fragile,
+	is_released,
+	release_agent_uid,
+	release_datetime,
+	release_staff_uid,
+	release_staff_room_name,
+	release_staff_ryosei_name,
+	checked_count,
+	is_lost,
+	lost_datetime,
+	is_returned,
+	returned_datetime,
+	is_operation_error,
+	operation_error_type,
+	note,
+	is_deleted,
+	sharing_status,
+	FORMAT(getdate(),'yyyy/MM/dd HH:mm:ss') as sharing_time
+	 FROM parcels WHERE sharing_status = 20
+	`
+	rows, err := db.Query(selectsql)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	sql := getSqlInsert(db, rows)
+	sql := getSqlParcelInsert(db, rows)
 
 	return &sql, nil
 }
 
-func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
+func getSqlParcelInsert(db *sqlx.DB, rows *sql.Rows) string {
 	var id interface{}
 	var ownerID interface{}
 	var ownerRoomID interface{}
@@ -420,6 +583,7 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 	var description interface{}
 	var isDeleted interface{}
 	var sharingStatus interface{}
+	var sharingTime interface{}
 
 	sql := ""
 	for rows.Next() {
@@ -450,6 +614,7 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 			&description,
 			&isDeleted,
 			&sharingStatus,
+			&sharingTime,
 		)
 
 		if err != nil {
@@ -457,7 +622,7 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 		}
 
 		query := fmt.Sprintf(
-			`INSERT INTO parcels(
+			`REPLACE INTO parcels(
 				uid,
 				owner_uid,
 				owner_room_name,
@@ -483,11 +648,12 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 				operation_error_type,
 				note,
 				is_deleted,
-				sharing_status
+				sharing_status,
+				sharing_time
 			) VALUES(
 				'%s','%s','%s','%s','%s','%s','%s','%s',%d,%d,
 				%d,%v,%v,%v,%v,%v,%d,%d,%v,%d,
-				%v,%d,%v,%v,%d,%d
+				%v,%d,%v,%v,%d,%d,%v
 		);`,
 			id,
 			ownerID,
@@ -515,6 +681,7 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 			nullStringToJsonFormat(description),
 			boolToInt(isDeleted),
 			sharingStatus,
+			nullStringToJsonFormat(sharingTime),
 		)
 		sql += query
 	}
@@ -524,6 +691,7 @@ func getSqlInsert(db *sqlx.DB, rows *sql.Rows) string {
 /*
 	Return SQL with sharing status 20 and 21 to the tablet
 */
+/*
 func GetUnsyncedParcelsAsSqlUpdate(db *sqlx.DB) (*string, error) {
 	rows, err := db.Query("SELECT * FROM parcels WHERE sharing_status = 21")
 	if err != nil {
@@ -531,12 +699,13 @@ func GetUnsyncedParcelsAsSqlUpdate(db *sqlx.DB) (*string, error) {
 	}
 	defer rows.Close()
 
-	sql := getSqlUpdate(db, rows)
+	sql := getSqlParcelsUpdate(db, rows)
 
 	return &sql, nil
 }
-
-func getSqlUpdate(db *sqlx.DB, rows *sql.Rows) string {
+*/
+/*
+func getSqlParcelsUpdate(db *sqlx.DB, rows *sql.Rows) string {
 	var id interface{}
 	var ownerID interface{}
 	var ownerRoomID interface{}
@@ -663,3 +832,4 @@ func getSqlUpdate(db *sqlx.DB, rows *sql.Rows) string {
 	}
 	return sql
 }
+*/

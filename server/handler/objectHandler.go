@@ -29,8 +29,8 @@ func (routes *Routes) ObjectHandler(env *database.Env, objectType models.ObjectT
 			showAllObjects(w, r, env.DB, objectType)
 		case "create":
 			createObjects(w, r, env.DB, objectType)
-		case "update":
-			updateObjects(w, r, env.DB, objectType)
+		//case "update":
+		//updateObjects(w, r, env.DB, objectType)
 		case "check":
 			checkObjectUpdateInTablet(w, r, env.DB, objectType)
 		default:
@@ -59,6 +59,7 @@ func showAllObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectT
 
 func createObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 	r.ParseForm()
+	fmt.Print("received insert data")
 	raw_json := r.Form[""][0]
 	if raw_json != "" {
 		objects, err := models.ParseJsonToObjects(raw_json, objectType)
@@ -77,6 +78,7 @@ func createObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectTy
 	fmt.Fprintf(w, "%s", *msg)
 }
 
+/*
 func updateObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 	r.ParseForm()
 	raw_json := r.Form[""][0]
@@ -96,7 +98,7 @@ func updateObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectTy
 	}
 	fmt.Fprintf(w, "%s", *msg)
 }
-
+*/
 func checkObjectUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 
 	r.ParseForm()

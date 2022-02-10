@@ -49,6 +49,7 @@ func InsertObjects(db *sqlx.DB, objects interface{}) error {
 	}
 }
 
+/*
 func UpdateObjects(db *sqlx.DB, objects interface{}) error {
 	switch objects.(type) {
 	case []*Ryosei:
@@ -59,7 +60,7 @@ func UpdateObjects(db *sqlx.DB, objects interface{}) error {
 		return errors.New("Unknown objects type")
 	}
 }
-
+*/
 func GetUnsyncedObjectsAsSqlInsert(db *sqlx.DB, objectType ObjectType) (*string, error) {
 	switch objectType.(type) {
 	case Ryosei:
@@ -73,6 +74,7 @@ func GetUnsyncedObjectsAsSqlInsert(db *sqlx.DB, objectType ObjectType) (*string,
 	}
 }
 
+/*
 func GetUnsyncedObjectsAsSqlUpdate(db *sqlx.DB, objectType ObjectType) (*string, error) {
 	switch objectType.(type) {
 	case Ryosei:
@@ -82,4 +84,4 @@ func GetUnsyncedObjectsAsSqlUpdate(db *sqlx.DB, objectType ObjectType) (*string,
 	default:
 		return nil, errors.New("Unknown objects type")
 	}
-}
+}*/
