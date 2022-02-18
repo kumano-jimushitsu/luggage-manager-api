@@ -17,7 +17,7 @@ go mod download  // download modules
 # Run
 ```
 cd server
-go build -o . ./main/server.go ./main/routes.go  // bundle go files
+go build -o . ./main/server.go // bundle go files
 ./server  // execute
 ```
 
