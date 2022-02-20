@@ -6,12 +6,25 @@ import (
 	handlers "luggage-api/server/handler"
 	"luggage-api/server/models"
 	"net/http"
+	"os"
 
 	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
 )
 
+
+
 func main() {
+
+	// Output address of log
+	f, err := os.OpenFile("../test.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println(err)
+	}
+	defer f.Close()
+	
+	// Instanciate logger
+	logger := log.New(f, "", log.LstdFlags)
 
 	// Connect to Database
 	db, err := database.NewDB("parcels")
@@ -21,7 +34,7 @@ func main() {
 	defer db.Close()
 
 	// env = a pacckage of Global environment varible
-	env := &database.Env{DB: db}
+	env := &database.Env{DB: db, Logger: logger}
 
 	// Define a non-default ServeMux
 	mux := http.NewServeMux()
@@ -39,8 +52,12 @@ func main() {
 	// mux.Handle("/initRyosei", routes.InitRyoseiHandler(env))
 
 	// Start the Server
+	log.Println("Server started.")
+	env.Logger.Println("Server started.")
 	err = http.ListenAndServe(":8080", mux)
+
 	if err != nil {
 		log.Fatalln("Can't start server. Shutting down...")
+		env.Logger.Fatalln("Can't start server. Shutting down...")
 	}
 }

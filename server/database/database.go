@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/url"
 
 	"github.com/jmoiron/sqlx"
@@ -10,6 +11,7 @@ import (
 
 type Env struct {
 	DB *sqlx.DB
+	Logger *log.Logger
 }
 
 func NewDB(dbName string) (*sqlx.DB, error) {

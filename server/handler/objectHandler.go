@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // Route contains information for handlers to run
@@ -27,9 +25,9 @@ func (routes *Routes) ObjectHandler(env *database.Env, objectType models.ObjectT
 		method := strings.TrimPrefix(r.URL.Path, prefix)
 		switch method {
 		case "":
-			showAllObjects(w, r, env.DB, objectType)
+			showAllObjects(w, r, env, objectType)
 		case "create":
-			createObjects(w, r, env.DB, objectType)
+			createObjects(w, r, env, objectType)
 		//case "update":
 			// updateObjects(w, r, env.DB, objectType)
 		// case "check":
@@ -40,25 +38,27 @@ func (routes *Routes) ObjectHandler(env *database.Env, objectType models.ObjectT
 	})
 }
 
-func showAllObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
+func showAllObjects(w http.ResponseWriter, r *http.Request, env *database.Env, objectType models.ObjectType) {
 
 	// Get all objects from database
-	objects, err := models.GetAllRecords(db, objectType)
+	objects, err := models.GetAllRecords(env.DB, objectType)
 	if err != nil {
 		log.Fatal(err)
+		env.Logger.Fatal(err)
 	}
 
 	// Process objets to json
 	json, err := json.Marshal(objects)
 	if err != nil {
 		log.Fatal(err)
+		env.Logger.Fatal(err)
 	}
 
 	// Output
 	fmt.Fprintf(w, "%s", string(json))
 }
 
-func createObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
+func createObjects(w http.ResponseWriter, r *http.Request, env *database.Env, objectType models.ObjectType) {
 	r.ParseForm()
 	raw_json := r.Form[""][0]
 
@@ -68,33 +68,37 @@ func createObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectTy
 		objects, err := models.ParseJsonToObjects(raw_json, objectType)
 		if err != nil {
 			log.Fatal(err)
+			env.Logger.Fatal(err)
 		}
 
 		// Log message in console
-		consoleLog(objects)
+		consoleLog(env, objects)
 
 		// Upsert objects
-		err = models.InsertObjects(db, objects)
+		err = models.InsertObjects(env.DB, objects)
 		if err != nil {
 			log.Fatal(err)
+			env.Logger.Fatal(err)
 		}
 
 	}
 
 	// Send objects with sharing_status = 20 to the tablet
-	msg, err := models.GetUnsyncedObjectsAsSqlInsert(db, objectType)
+	msg, err := models.GetUnsyncedObjectsAsSqlInsert(env.DB, objectType)
 	if err != nil {
 		log.Fatal(err)
+		env.Logger.Fatal(err)
 	}
 	fmt.Fprintf(w, "%s", *msg)
 
 }
 
-func consoleLog(objects interface{}) {
+func consoleLog(env *database.Env, objects interface{}) {
 	objectsArray := objects.([]*models.ObjectType)
 	for _, object :=  range objectsArray {
 		currentTime := time.Now().Format("2006-01-02 15:04:05")
 		fmt.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
+		env.Logger.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
 	}
 }
 

@@ -2,12 +2,8 @@ package models
 
 import (
 	"database/sql"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"log"
-	"os"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -715,106 +711,106 @@ func GetRyoseiSeedingSql(db *sqlx.DB) (string, error) {
 /*
 	[Depreated] Seed database from csv ryosei data
 */
-func GetRyoseiSeedingCsv(db *sqlx.DB) {
-	rows, err := db.Query("SELECT * FROM ryosei")
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
+// func GetRyoseiSeedingCsv(db *sqlx.DB) {
+// 	rows, err := db.Query("SELECT * FROM ryosei")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	defer rows.Close()
 
-	var id interface{}
-	var roomID interface{}
-	var name interface{}
-	var kana interface{}
-	var romaji interface{}
-	var blockID interface{}
-	var slackID interface{}
-	var status interface{}
-	var currentCount interface{}
-	var totalCount interface{}
-	var totalWaitTime interface{}
-	var lastEventID interface{}
-	var lastEventDatetime interface{}
-	var createdAt interface{}
-	var updateAt interface{}
-	var sharingStatus interface{}
+// 	var id interface{}
+// 	var roomID interface{}
+// 	var name interface{}
+// 	var kana interface{}
+// 	var romaji interface{}
+// 	var blockID interface{}
+// 	var slackID interface{}
+// 	var status interface{}
+// 	var currentCount interface{}
+// 	var totalCount interface{}
+// 	var totalWaitTime interface{}
+// 	var lastEventID interface{}
+// 	var lastEventDatetime interface{}
+// 	var createdAt interface{}
+// 	var updateAt interface{}
+// 	var sharingStatus interface{}
 
-	file, err := os.Create("寮生.csv")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-	cw := csv.NewWriter(file)
-	defer cw.Flush()
+// 	file, err := os.Create("寮生.csv")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	defer file.Close()
+// 	cw := csv.NewWriter(file)
+// 	defer cw.Flush()
 
-	for rows.Next() {
-		err := rows.Scan(
-			&id,
-			&roomID,
-			&name,
-			&kana,
-			&romaji,
-			&blockID,
-			&slackID,
-			&status,
-			&currentCount,
-			&totalCount,
-			&totalWaitTime,
-			&lastEventID,
-			&lastEventDatetime,
-			&createdAt,
-			&updateAt,
-			&sharingStatus,
-		)
+// 	for rows.Next() {
+// 		err := rows.Scan(
+// 			&id,
+// 			&roomID,
+// 			&name,
+// 			&kana,
+// 			&romaji,
+// 			&blockID,
+// 			&slackID,
+// 			&status,
+// 			&currentCount,
+// 			&totalCount,
+// 			&totalWaitTime,
+// 			&lastEventID,
+// 			&lastEventDatetime,
+// 			&createdAt,
+// 			&updateAt,
+// 			&sharingStatus,
+// 		)
 
-		if err != nil {
-			log.Fatal(err)
-		}
+// 		if err != nil {
+// 			log.Fatal(err)
+// 		}
 
-		createdAt, ok := createdAt.(time.Time)
-		if ok == false {
-			panic("Type assertion of createdAt into time.Time failed")
-		}
+// 		createdAt, ok := createdAt.(time.Time)
+// 		if ok == false {
+// 			panic("Type assertion of createdAt into time.Time failed")
+// 		}
 
-		col := []string{
-			id.(string),
-			roomID.(string),
-			name.(string),
-			kana.(string),
-			romaji.(string),
-			fmt.Sprint(blockID.(int64)),
-			nullStringToJsonFormat(slackID),
-			fmt.Sprint(status.(int64)),
-			fmt.Sprint(currentCount.(int64)),
-			fmt.Sprint(totalCount.(int64)),
-			totalWaitTime.(string),
-			nullStringToJsonFormat(lastEventID),
-			nullTimeToJsonFormat(lastEventDatetime),
-			nullTimeToJsonFormat(createdAt),
-			nullTimeToJsonFormat(updateAt),
-			fmt.Sprint(sharingStatus.(int64)),
-		}
+// 		col := []string{
+// 			id.(string),
+// 			roomID.(string),
+// 			name.(string),
+// 			kana.(string),
+// 			romaji.(string),
+// 			fmt.Sprint(blockID.(int64)),
+// 			nullStringToJsonFormat(slackID),
+// 			fmt.Sprint(status.(int64)),
+// 			fmt.Sprint(currentCount.(int64)),
+// 			fmt.Sprint(totalCount.(int64)),
+// 			totalWaitTime.(string),
+// 			nullStringToJsonFormat(lastEventID),
+// 			nullTimeToJsonFormat(lastEventDatetime),
+// 			nullTimeToJsonFormat(createdAt),
+// 			nullTimeToJsonFormat(updateAt),
+// 			fmt.Sprint(sharingStatus.(int64)),
+// 		}
 
-		cw.Write(col)
-	}
+// 		cw.Write(col)
+// 	}
 
-	err = rows.Err()
-	if err != nil {
-		panic(err)
-	}
-}
+// 	err = rows.Err()
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// }
 
-func IncrementParcelCount(db *sqlx.DB, parcel Parcel) error {
-	ownerId := parcel.OwnerID
-	sql := fmt.Sprintf("UPDATE ryosei SET parcels_current_count = parcels_current_count + 1, parcels_total_count = parcels_total_count + 1 WHERE uid = '%s'", ownerId)
-	_, err := db.Exec(sql)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+// func IncrementParcelCount(db *sqlx.DB, parcel Parcel) error {
+// 	ownerId := parcel.OwnerID
+// 	sql := fmt.Sprintf("UPDATE ryosei SET parcels_current_count = parcels_current_count + 1, parcels_total_count = parcels_total_count + 1 WHERE uid = '%s'", ownerId)
+// 	_, err := db.Exec(sql)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
-func IncrementParcelCountSql(db *sqlx.DB, ownerId string) string {
-	sql := fmt.Sprintf("UPDATE ryosei SET parcels_current_count = parcels_current_count + 1, parcels_total_count = parcels_total_count + 1 WHERE ryosei_name = '%s';", ownerId)
-	return sql
-}
+// func IncrementParcelCountSql(db *sqlx.DB, ownerId string) string {
+// 	sql := fmt.Sprintf("UPDATE ryosei SET parcels_current_count = parcels_current_count + 1, parcels_total_count = parcels_total_count + 1 WHERE ryosei_name = '%s';", ownerId)
+// 	return sql
+// }
