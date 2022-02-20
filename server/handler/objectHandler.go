@@ -14,7 +14,7 @@ import (
 // Route contains information for handlers to run
 // The information will be passed to handlers when triggered
 type Routes struct {
-	RootDir     string
+	RootDir string
 	// DisableCORS bool
 	// ApiKey      string
 }
@@ -29,9 +29,9 @@ func (routes *Routes) ObjectHandler(env *database.Env, objectType models.ObjectT
 		case "create":
 			createObjects(w, r, env, objectType)
 		//case "update":
-			// updateObjects(w, r, env.DB, objectType)
+		// updateObjects(w, r, env.DB, objectType)
 		// case "check":
-			// checkObjectUpdateInTablet(w, r, env.DB, objectType)
+		// checkObjectUpdateInTablet(w, r, env.DB, objectType)
 		default:
 			fmt.Fprintf(w, "Wrong action: %v", r.URL.Path[len(prefix)])
 		}
@@ -93,12 +93,30 @@ func createObjects(w http.ResponseWriter, r *http.Request, env *database.Env, ob
 
 }
 
+// 処理が汚い。[]*any見たいな、中身の型はわからないけどこれは配列型だよっていう表現をできたらいいのだが
 func consoleLog(env *database.Env, objects interface{}) {
-	objectsArray := objects.([]*models.ObjectType)
-	for _, object :=  range objectsArray {
-		currentTime := time.Now().Format("2006-01-02 15:04:05")
-		fmt.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
-		env.Logger.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
+	switch objects := objects.(type) {
+	case []*models.Ryosei:
+		for _, object := range objects {
+			currentTime := time.Now().Format("2006-01-02-15:04:05")
+			fmt.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
+			env.Logger.Printf("\"Received %v upsert data with uid = %v\"\n", (*object).GetName(), (*object).Uid())
+		}
+	case []*models.Parcel:
+		for _, object := range objects {
+			currentTime := time.Now().Format("2006-01-02-15:04:05")
+			fmt.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
+			env.Logger.Printf("\"Received %v upsert data with uid = %v\"\n", (*object).GetName(), (*object).Uid())
+		}
+	case []*models.ParcelEvent:
+		for _, object := range objects {
+			currentTime := time.Now().Format("2006-01-02-15:04:05")
+			fmt.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
+			env.Logger.Printf("\"Received %v upsert data with uid = %v\"\n", (*object).GetName(), (*object).Uid())
+		}
+	default:
+		fmt.Println("Unknown object type")
+		env.Logger.Println("Unknown object type")
 	}
 }
 
