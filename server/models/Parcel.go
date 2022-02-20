@@ -368,6 +368,7 @@ INSERT INTO parcels(
 	:sharing_status
 )`
 */
+
 /*
 	Insert new parcels into DB
 */
@@ -494,20 +495,22 @@ func UpdateParcels(db *sqlx.DB, parcels []*Parcel) error {
 	return nil
 }
 */
-func getParcelCountByUid(db *sqlx.DB, uid string) (int, error) {
-	var count int
-	query := fmt.Sprintf("SELECT * FROM parcels WHERE uid = '%s'", uid)
-	rows, err := db.Query(query)
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
 
-	for rows.Next() {
-		count++
-	}
-	return count, nil
-}
+/* Deprecated */
+// func getParcelCountByUid(db *sqlx.DB, uid string) (int, error) {
+// 	var count int
+// 	query := fmt.Sprintf("SELECT * FROM parcels WHERE uid = '%s'", uid)
+// 	rows, err := db.Query(query)
+// 	if err != nil {
+// 		return 0, err
+// 	}
+// 	defer rows.Close()
+
+// 	for rows.Next() {
+// 		count++
+// 	}
+// 	return count, nil
+// }
 
 /*
 	Return SQL with sharing status 20 to the tablet

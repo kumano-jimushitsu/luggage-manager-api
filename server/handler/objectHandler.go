@@ -16,8 +16,8 @@ import (
 // The information will be passed to handlers when triggered
 type Routes struct {
 	RootDir     string
-	DisableCORS bool
-	ApiKey      string
+	// DisableCORS bool
+	// ApiKey      string
 }
 
 func (routes *Routes) ObjectHandler(env *database.Env, objectType models.ObjectType) http.Handler {
@@ -30,9 +30,9 @@ func (routes *Routes) ObjectHandler(env *database.Env, objectType models.ObjectT
 		case "create":
 			createObjects(w, r, env.DB, objectType)
 		//case "update":
-		//updateObjects(w, r, env.DB, objectType)
-		case "check":
-			checkObjectUpdateInTablet(w, r, env.DB, objectType)
+			// updateObjects(w, r, env.DB, objectType)
+		// case "check":
+			// checkObjectUpdateInTablet(w, r, env.DB, objectType)
 		default:
 			fmt.Fprintf(w, "Wrong action: %v", r.URL.Path[len(prefix)])
 		}
@@ -99,51 +99,54 @@ func updateObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectTy
 	fmt.Fprintf(w, "%s", *msg)
 }
 */
-func checkObjectUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 
-	r.ParseForm()
-	msg := r.Form[""][0]
-	msg = msg[:6]
+/* Check if sql insert in table succeeded */
+// func checkObjectUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 
-	if msg == "" {
-		// do nothing
-		return
-	}
+// 	r.ParseForm()
+// 	msg := r.Form[""][0]
+// 	msg = msg[:6]
 
-	var sharing_status int
+// 	if msg == "" {
+// 		// do nothing
+// 		return
+// 	}
 
-	switch msg {
-	case "create":
-		sharing_status = 20
-	case "update":
-		sharing_status = 21
-	default:
-		log.Fatal("Unknown method")
-	}
+// 	var sharing_status int
 
-	var update string
+// 	switch msg {
+// 	case "create":
+// 		sharing_status = 20
+// 	case "update":
+// 		sharing_status = 21
+// 	default:
+// 		log.Fatal("Unknown method")
+// 	}
 
-	switch objectType.(type) {
-	case models.Ryosei:
-		update = "UPDATE ryosei SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
-	case models.Parcel:
-		update = "UPDATE parcels SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
-	case models.ParcelEvent:
-		update = "UPDATE parcel_event SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
-	default:
-		log.Fatal("Unknown type")
-	}
+// 	var update string
 
-	_, err := db.Exec(update)
-	if err != nil {
-		log.Fatal(err)
-	}
+// 	switch objectType.(type) {
+// 	case models.Ryosei:
+// 		update = "UPDATE ryosei SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
+// 	case models.Parcel:
+// 		update = "UPDATE parcels SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
+// 	case models.ParcelEvent:
+// 		update = "UPDATE parcel_event SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
+// 	default:
+// 		log.Fatal("Unknown type")
+// 	}
 
-	fmt.Fprintf(w, "%s", "")
-}
+// 	_, err := db.Exec(update)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-func (routes *Routes) InitRyoseiHandler(env *database.Env) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		models.GetRyoseiSeedingCsv(env.DB)
-	})
-}
+// 	fmt.Fprintf(w, "%s", "")
+// }
+
+// /* Bulk insert ryosei from csv */
+// func (routes *Routes) InitRyoseiHandler(env *database.Env) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		models.GetRyoseiSeedingCsv(env.DB)
+// 	})
+// }

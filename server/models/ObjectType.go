@@ -61,6 +61,7 @@ func UpdateObjects(db *sqlx.DB, objects interface{}) error {
 	}
 }
 */
+
 func GetUnsyncedObjectsAsSqlInsert(db *sqlx.DB, objectType ObjectType) (*string, error) {
 	switch objectType.(type) {
 	case Ryosei:

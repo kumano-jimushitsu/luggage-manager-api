@@ -28,15 +28,15 @@ func main() {
 
 	routes := handlers.Routes{
 		RootDir:     "",
-		DisableCORS: true,
-		ApiKey:      "aaa",
+		// DisableCORS: true,
+		// ApiKey:      "aaa",
 	}
 
 	// Register event handlers
 	mux.Handle("/ryosei/", routes.ObjectHandler(env, models.Ryosei{}))
 	mux.Handle("/parcels/", routes.ObjectHandler(env, models.Parcel{}))
 	mux.Handle("/parcel_event/", routes.ObjectHandler(env, models.ParcelEvent{}))
-	mux.Handle("/initRyosei", routes.InitRyoseiHandler(env))
+	// mux.Handle("/initRyosei", routes.InitRyoseiHandler(env))
 
 	// Start the Server
 	err = http.ListenAndServe(":8080", mux)
