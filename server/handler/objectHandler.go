@@ -8,6 +8,7 @@ import (
 	"luggage-api/server/models"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -60,22 +61,41 @@ func showAllObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectT
 func createObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 	r.ParseForm()
 	raw_json := r.Form[""][0]
+
 	if raw_json != "" {
+
+		// Objectify json
 		objects, err := models.ParseJsonToObjects(raw_json, objectType)
-		fmt.Printf("received %v insert data\n", objectType.GetName())
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// Log message in console
+		consoleLog(objects)
+
+		// Upsert objects
 		err = models.InsertObjects(db, objects)
 		if err != nil {
 			log.Fatal(err)
 		}
+
 	}
+
+	// Send objects with sharing_status = 20 to the tablet
 	msg, err := models.GetUnsyncedObjectsAsSqlInsert(db, objectType)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Fprintf(w, "%s", *msg)
+
+}
+
+func consoleLog(objects interface{}) {
+	objectsArray := objects.([]*models.ObjectType)
+	for _, object :=  range objectsArray {
+		currentTime := time.Now().Format("2006-01-02 15:04:05")
+		fmt.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
+	}
 }
 
 /*

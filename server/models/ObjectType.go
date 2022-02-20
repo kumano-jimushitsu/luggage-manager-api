@@ -8,6 +8,7 @@ import (
 
 type ObjectType interface {
 	GetName() string
+	Uid() string
 }
 
 func ParseJsonToObjects(raw_json string, objectType ObjectType) (interface{}, error) {

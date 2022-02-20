@@ -16,6 +16,10 @@ func (parcel Parcel) GetName() string {
 	return "parcels"
 }
 
+func (parcel Parcel) Uid() string {
+	return parcel.Id
+}
+
 /*
 	Implement Unmarshaler interface
 	https://golang.org/pkg/encoding/json/#Unmarshaler

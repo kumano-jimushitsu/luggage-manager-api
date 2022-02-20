@@ -16,6 +16,10 @@ func (ryosei Ryosei) GetName() string {
 	return "ryosei"
 }
 
+func (ryosei Ryosei) Uid() string {
+	return ryosei.Id
+}
+
 func (ryosei *Ryosei) UnmarshalJSON(data []byte) error {
 
 	var record *map[string]interface{}
