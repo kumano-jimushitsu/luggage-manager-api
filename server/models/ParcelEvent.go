@@ -15,6 +15,10 @@ func (parcelEvent ParcelEvent) GetName() string {
 	return "parcel_event"
 }
 
+func (parcelEvent ParcelEvent) Uid() string {
+	return parcelEvent.Id
+}
+
 /*
 	Implement Unmarshaler interface
 */

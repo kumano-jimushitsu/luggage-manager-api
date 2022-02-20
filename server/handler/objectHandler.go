@@ -8,16 +8,15 @@ import (
 	"luggage-api/server/models"
 	"net/http"
 	"strings"
-
-	"github.com/jmoiron/sqlx"
+	"time"
 )
 
 // Route contains information for handlers to run
 // The information will be passed to handlers when triggered
 type Routes struct {
 	RootDir     string
-	DisableCORS bool
-	ApiKey      string
+	// DisableCORS bool
+	// ApiKey      string
 }
 
 func (routes *Routes) ObjectHandler(env *database.Env, objectType models.ObjectType) http.Handler {
@@ -26,56 +25,81 @@ func (routes *Routes) ObjectHandler(env *database.Env, objectType models.ObjectT
 		method := strings.TrimPrefix(r.URL.Path, prefix)
 		switch method {
 		case "":
-			showAllObjects(w, r, env.DB, objectType)
+			showAllObjects(w, r, env, objectType)
 		case "create":
-			createObjects(w, r, env.DB, objectType)
+			createObjects(w, r, env, objectType)
 		//case "update":
-		//updateObjects(w, r, env.DB, objectType)
-		case "check":
-			checkObjectUpdateInTablet(w, r, env.DB, objectType)
+			// updateObjects(w, r, env.DB, objectType)
+		// case "check":
+			// checkObjectUpdateInTablet(w, r, env.DB, objectType)
 		default:
 			fmt.Fprintf(w, "Wrong action: %v", r.URL.Path[len(prefix)])
 		}
 	})
 }
 
-func showAllObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
+func showAllObjects(w http.ResponseWriter, r *http.Request, env *database.Env, objectType models.ObjectType) {
 
 	// Get all objects from database
-	objects, err := models.GetAllRecords(db, objectType)
+	objects, err := models.GetAllRecords(env.DB, objectType)
 	if err != nil {
 		log.Fatal(err)
+		env.Logger.Fatal(err)
 	}
 
 	// Process objets to json
 	json, err := json.Marshal(objects)
 	if err != nil {
 		log.Fatal(err)
+		env.Logger.Fatal(err)
 	}
 
 	// Output
 	fmt.Fprintf(w, "%s", string(json))
 }
 
-func createObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
+func createObjects(w http.ResponseWriter, r *http.Request, env *database.Env, objectType models.ObjectType) {
 	r.ParseForm()
 	raw_json := r.Form[""][0]
+
 	if raw_json != "" {
+
+		// Objectify json
 		objects, err := models.ParseJsonToObjects(raw_json, objectType)
-		fmt.Printf("received %v insert data\n", objectType.GetName())
 		if err != nil {
 			log.Fatal(err)
+			env.Logger.Fatal(err)
 		}
-		err = models.InsertObjects(db, objects)
+
+		// Log message in console
+		consoleLog(env, objects)
+
+		// Upsert objects
+		err = models.InsertObjects(env.DB, objects)
 		if err != nil {
 			log.Fatal(err)
+			env.Logger.Fatal(err)
 		}
+
 	}
-	msg, err := models.GetUnsyncedObjectsAsSqlInsert(db, objectType)
+
+	// Send objects with sharing_status = 20 to the tablet
+	msg, err := models.GetUnsyncedObjectsAsSqlInsert(env.DB, objectType)
 	if err != nil {
 		log.Fatal(err)
+		env.Logger.Fatal(err)
 	}
 	fmt.Fprintf(w, "%s", *msg)
+
+}
+
+func consoleLog(env *database.Env, objects interface{}) {
+	objectsArray := objects.([]*models.ObjectType)
+	for _, object :=  range objectsArray {
+		currentTime := time.Now().Format("2006-01-02 15:04:05")
+		fmt.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
+		env.Logger.Printf("[%v] Received %v upsert data with uid = %v\n", currentTime, (*object).GetName(), (*object).Uid())
+	}
 }
 
 /*
@@ -99,51 +123,54 @@ func updateObjects(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectTy
 	fmt.Fprintf(w, "%s", *msg)
 }
 */
-func checkObjectUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 
-	r.ParseForm()
-	msg := r.Form[""][0]
-	msg = msg[:6]
+/* Check if sql insert in table succeeded */
+// func checkObjectUpdateInTablet(w http.ResponseWriter, r *http.Request, db *sqlx.DB, objectType models.ObjectType) {
 
-	if msg == "" {
-		// do nothing
-		return
-	}
+// 	r.ParseForm()
+// 	msg := r.Form[""][0]
+// 	msg = msg[:6]
 
-	var sharing_status int
+// 	if msg == "" {
+// 		// do nothing
+// 		return
+// 	}
 
-	switch msg {
-	case "create":
-		sharing_status = 20
-	case "update":
-		sharing_status = 21
-	default:
-		log.Fatal("Unknown method")
-	}
+// 	var sharing_status int
 
-	var update string
+// 	switch msg {
+// 	case "create":
+// 		sharing_status = 20
+// 	case "update":
+// 		sharing_status = 21
+// 	default:
+// 		log.Fatal("Unknown method")
+// 	}
 
-	switch objectType.(type) {
-	case models.Ryosei:
-		update = "UPDATE ryosei SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
-	case models.Parcel:
-		update = "UPDATE parcels SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
-	case models.ParcelEvent:
-		update = "UPDATE parcel_event SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
-	default:
-		log.Fatal("Unknown type")
-	}
+// 	var update string
 
-	_, err := db.Exec(update)
-	if err != nil {
-		log.Fatal(err)
-	}
+// 	switch objectType.(type) {
+// 	case models.Ryosei:
+// 		update = "UPDATE ryosei SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
+// 	case models.Parcel:
+// 		update = "UPDATE parcels SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
+// 	case models.ParcelEvent:
+// 		update = "UPDATE parcel_event SET sharing_status = 30 WHERE sharing_status = " + fmt.Sprint(sharing_status)
+// 	default:
+// 		log.Fatal("Unknown type")
+// 	}
 
-	fmt.Fprintf(w, "%s", "")
-}
+// 	_, err := db.Exec(update)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-func (routes *Routes) InitRyoseiHandler(env *database.Env) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		models.GetRyoseiSeedingCsv(env.DB)
-	})
-}
+// 	fmt.Fprintf(w, "%s", "")
+// }
+
+// /* Bulk insert ryosei from csv */
+// func (routes *Routes) InitRyoseiHandler(env *database.Env) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		models.GetRyoseiSeedingCsv(env.DB)
+// 	})
+// }

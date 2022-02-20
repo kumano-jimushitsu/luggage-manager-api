@@ -8,6 +8,7 @@ import (
 
 type ObjectType interface {
 	GetName() string
+	Uid() string
 }
 
 func ParseJsonToObjects(raw_json string, objectType ObjectType) (interface{}, error) {
@@ -61,6 +62,7 @@ func UpdateObjects(db *sqlx.DB, objects interface{}) error {
 	}
 }
 */
+
 func GetUnsyncedObjectsAsSqlInsert(db *sqlx.DB, objectType ObjectType) (*string, error) {
 	switch objectType.(type) {
 	case Ryosei:
