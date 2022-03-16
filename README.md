@@ -22,3 +22,8 @@ go build -o . ./main/server.go // bundle go files
 ```
 
 the host is localhost:8080
+
+# Links
+
+- POKKE for Android: https://github.com/kumano-jimushitsu/nimotsu-app-android
+- POKKE for PC: https://github.com/kumano-jimushitsu/nimotsu-app-pc
